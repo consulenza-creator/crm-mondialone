@@ -1659,9 +1659,30 @@ function renderMie(){
   const now=Date.now();
   const ALERT_DAYS=2;
 
+  // Build lookup da TOP60
+  const top60Map={};
+  TOP60.forEach(u=>{ top60Map[u.u.toLowerCase()]=u; });
+
+  // Utenti in TOP60 assegnati a questo operatore
   let myCalls=TOP60.filter(u=>{
     const st=callState[u.u]||{};
     return opName?st.op===opName:st.op;
+  });
+
+  // Aggiungi utenti dal callState che NON sono più in TOP60 ma sono stati assegnati
+  // (utenti storici lavorati che non devono sparire)
+  Object.keys(callState).forEach(uName=>{
+    const st=callState[uName]||{};
+    const opMatch=opName?st.op===opName:!!st.op;
+    if(!opMatch)return;
+    if(top60Map[uName.toLowerCase()])return; // già in TOP60
+    // Crea entry minimale per utenti fuori TOP60
+    myCalls.push({
+      u:uName, fn:st.fn||'—', f:st.fil||'—', pr:'—', sc2:'Storico',
+      scr:'', vt:0, act_d:'', vt_d:0, ggr_d:0, tk:0, pm:0, vm:st.vm||0,
+      tm:0, sc:0, dnc:false, auto:false, segn:false, cls:'', stato:'',
+      _storico:true
+    });
   });
 
   const pending=myCalls.filter(u=>!(callState[u.u]||{}).esito);
@@ -2247,20 +2268,25 @@ function enrichQualifFromTac() {
 }
 
 function renderDashboard() {
-  enrichQualifFromTac();
-  const list    = getDashQualif();
-  const tacSet  = new Set(TAC_USERS ? TAC_USERS.map(u=>u.u.toLowerCase()) : []);
-  const nQualif = list.length;
-  const nPromo  = list.filter(q=>(q.vq||q.vt||0)>0).length;
-  const nAttivi = list.filter(q=>(q.vt||0)>0).length;
-  const nInatt  = nQualif - nAttivi;
-  const tot     = list.reduce((s,q)=>s+(q.vt||0),0);
-
-  if (!dashSubTab || dashSubTab==='riepilogo') renderDashRiepilogo(list,tacSet,nPromo,nAttivi,nInatt,tot);
-  else if (dashSubTab==='inattivi')  renderDashInattivi();
-  else if (dashSubTab==='players')   renderDashPlayers();
-  else if (dashSubTab==='pivot')     renderDashPivot();
-  else if (dashSubTab==='sport')     renderDashSport();
+  try {
+    enrichQualifFromTac();
+    const list    = getDashQualif();
+    const tacSet  = new Set(TAC_USERS ? TAC_USERS.map(u=>u.u.toLowerCase()) : []);
+    const nQualif = list.length;
+    const nPromo  = list.filter(q=>(q.vq||q.vt||0)>0).length;
+    const nAttivi = list.filter(q=>(q.vt||0)>0).length;
+    const nInatt  = nQualif - nAttivi;
+    const tot     = list.reduce((s,q)=>s+(q.vt||0),0);
+    if (!dashSubTab || dashSubTab==='riepilogo') renderDashRiepilogo(list,tacSet,nPromo,nAttivi,nInatt,tot);
+    else if (dashSubTab==='inattivi')  renderDashInattivi();
+    else if (dashSubTab==='players')   renderDashPlayers();
+    else if (dashSubTab==='pivot')     renderDashPivot();
+    else if (dashSubTab==='sport')     renderDashSport();
+  } catch(e) {
+    const el=document.getElementById('dash-content');
+    if(el) el.innerHTML='<div style="padding:20px;color:#ef4444;font-size:12px">⚠️ Errore dashboard: '+e.message+'</div>';
+    console.error('renderDashboard error:',e);
+  }
 }
 
 function fmt(n,dec=0){
