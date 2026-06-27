@@ -283,13 +283,12 @@ th[data-tip]{cursor:help}
     <button class="hdr-logout" onclick="doLogout()">Esci</button>
   </div>
   <div class="tab-bar">
+    <div class="tab active" id="tab-dash" onclick="switchTab('dash')">📊 Dashboard</div>
     <div class="tab" id="tab-oggi" onclick="switchTab('oggi')">📋 Chiamate <span class="tab-count" id="tc-oggi">60</span></div>
     <div class="tab" id="tab-monitor" onclick="switchTab('monitor')">📊 Monitor</div>
     <div class="tab" id="tab-tutti" onclick="switchTab('tutti')">👥 Tutti gli utenti <span class="tab-count" id="tc-tutti">...</span></div>
     <div class="tab" id="tab-conv" onclick="switchTab('conv')">🏆 Convertiti <span class="tab-count" id="tc-conv">0</span></div>
     <div class="tab" id="tab-mie" onclick="switchTab('mie')">📞 Le Mie <span class="tab-count" id="tc-mie">0</span></div>
-
-    <div class="tab active" id="tab-dash" onclick="switchTab('dash')">📊 Dashboard</div>
     <div class="tab" id="tab-qualif" onclick="switchTab('qualif')">🌍 Qualificati <span class="tab-count" id="tc-qualif">1343</span></div>
   </div>
   <div class="main-content">
