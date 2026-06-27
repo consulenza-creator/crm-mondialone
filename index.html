@@ -283,13 +283,13 @@ th[data-tip]{cursor:help}
     <button class="hdr-logout" onclick="doLogout()">Esci</button>
   </div>
   <div class="tab-bar">
-    <div class="tab active" id="tab-oggi" onclick="switchTab('oggi')">📋 Chiamate <span class="tab-count" id="tc-oggi">60</span></div>
+    <div class="tab" id="tab-oggi" onclick="switchTab('oggi')">📋 Chiamate <span class="tab-count" id="tc-oggi">60</span></div>
     <div class="tab" id="tab-monitor" onclick="switchTab('monitor')">📊 Monitor</div>
     <div class="tab" id="tab-tutti" onclick="switchTab('tutti')">👥 Tutti gli utenti <span class="tab-count" id="tc-tutti">...</span></div>
     <div class="tab" id="tab-conv" onclick="switchTab('conv')">🏆 Convertiti <span class="tab-count" id="tc-conv">0</span></div>
     <div class="tab" id="tab-mie" onclick="switchTab('mie')">📞 Le Mie <span class="tab-count" id="tc-mie">0</span></div>
 
-    <div class="tab" id="tab-dash" onclick="switchTab('dash')">📊 Dashboard</div>
+    <div class="tab active" id="tab-dash" onclick="switchTab('dash')">📊 Dashboard</div>
     <div class="tab" id="tab-qualif" onclick="switchTab('qualif')">🌍 Qualificati <span class="tab-count" id="tc-qualif">1343</span></div>
   </div>
   <div class="main-content">
@@ -471,6 +471,32 @@ L'operatore riceve una notifica all'orario scelto.">📞</th>
   </div>
 </div>
 
+<div id="pane-dash" style="display:none;padding:12px 16px;overflow-y:auto;max-height:calc(100vh - 130px)">
+
+  <!-- KPI ROW - sempre visibile -->
+  <div id="dash-kpi-row" class="dash-kpi-row"></div>
+
+  <!-- SUB-TAB NAVIGATION -->
+  <div class="dash-stab-nav">
+    <button class="dash-stab active" id="dsub-riepilogo" onclick="setDashSub('riepilogo')">📈 Riepilogo</button>
+    <button class="dash-stab" id="dsub-qualif" onclick="setDashSub('qualif')">👤 Qualificati</button>
+    <button class="dash-stab" id="dsub-inattivi" onclick="setDashSub('inattivi')">😴 Da Riattivare <span id="dash-inatt-badge" style="background:#EF4444;color:#fff;border-radius:99px;padding:1px 6px;font-size:10px;font-weight:700;margin-left:4px">0</span></button>
+    <button class="dash-stab" id="dsub-father" onclick="setDashSub('father')">🤝 Per Father</button>
+    <button class="dash-stab" id="dsub-sport" onclick="setDashSub('sport')">⚽ Top Sport</button>
+  </div>
+
+  <!-- FILIERA FILTER -->
+  <div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:12px;align-items:center">
+    <span style="font-size:10px;color:#6B7280;font-weight:600">FILIERA:</span>
+    <button class="btn btn-xs dft-btn active" id="dft-all"        onclick="setDashFiliera('ALL')">Tutte</button>
+    <button class="btn btn-xs dft-btn" id="dft-playmatika"        onclick="setDashFiliera('Playmatika')">Playmatika</button>
+    <button class="btn btn-xs dft-btn" id="dft-microgame"         onclick="setDashFiliera('Microgame')">Microgame</button>
+    <button class="btn btn-xs dft-btn" id="dft-altro"             onclick="setDashFiliera('FilieraOnline')">FilieraOnline</button>
+  </div>
+
+  <!-- CONTENT AREA -->
+  <div id="dash-content"></div>
+</div>
 </div>
 </div>
 
@@ -600,32 +626,6 @@ L'operatore riceve una notifica all'orario scelto.">📞</th>
     <div id="archivio-list" style="max-height:300px;overflow-y:auto"><p style="color:#94A3B8;font-size:12px">Clicca "Carica lista archivi" per vedere gli snapshot</p></div>
   </div>
 </div>
-<div id="pane-dash" style="display:none;padding:12px 16px;overflow-y:auto;max-height:calc(100vh - 130px)">
-
-  <!-- KPI ROW - sempre visibile -->
-  <div id="dash-kpi-row" class="dash-kpi-row"></div>
-
-  <!-- SUB-TAB NAVIGATION -->
-  <div class="dash-stab-nav">
-    <button class="dash-stab active" id="dsub-riepilogo" onclick="setDashSub('riepilogo')">📈 Riepilogo</button>
-    <button class="dash-stab" id="dsub-qualif" onclick="setDashSub('qualif')">👤 Qualificati</button>
-    <button class="dash-stab" id="dsub-inattivi" onclick="setDashSub('inattivi')">😴 Da Riattivare <span id="dash-inatt-badge" style="background:#EF4444;color:#fff;border-radius:99px;padding:1px 6px;font-size:10px;font-weight:700;margin-left:4px">0</span></button>
-    <button class="dash-stab" id="dsub-father" onclick="setDashSub('father')">🤝 Per Father</button>
-    <button class="dash-stab" id="dsub-sport" onclick="setDashSub('sport')">⚽ Top Sport</button>
-  </div>
-
-  <!-- FILIERA FILTER -->
-  <div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:12px;align-items:center">
-    <span style="font-size:10px;color:#6B7280;font-weight:600">FILIERA:</span>
-    <button class="btn btn-xs dft-btn active" id="dft-all"        onclick="setDashFiliera('ALL')">Tutte</button>
-    <button class="btn btn-xs dft-btn" id="dft-playmatika"        onclick="setDashFiliera('Playmatika')">Playmatika</button>
-    <button class="btn btn-xs dft-btn" id="dft-microgame"         onclick="setDashFiliera('Microgame')">Microgame</button>
-    <button class="btn btn-xs dft-btn" id="dft-altro"             onclick="setDashFiliera('FilieraOnline')">FilieraOnline</button>
-  </div>
-
-  <!-- CONTENT AREA -->
-  <div id="dash-content"></div>
-</div>
 <div id="toast"></div>
 
 <script>
@@ -662,7 +662,7 @@ const DEFAULT_OPERATORS=[
   {id:5,name:'Valerio',pin:'2907',filiere:[],fathername:[],active:true},
 ];
 var cfg={adminPin:'2611',operators:[]};
-var currentUser=null,callState={},schedeState={},activeTab='oggi',filteredUsers=[],currentScheda=null;
+var currentUser=null,callState={},schedeState={},activeTab='dash',filteredUsers=[],currentScheda=null;
 
 function todayStr(){const d=new Date();return String(d.getDate()).padStart(2,'0')+String(d.getMonth()+1).padStart(2,'0')+d.getFullYear();}
 function todayDisp(){const d=new Date();return String(d.getDate()).padStart(2,'0')+'/'+String(d.getMonth()+1).padStart(2,'0')+'/'+d.getFullYear();}
@@ -949,6 +949,7 @@ async function showApp(){
   setInterval(checkReminders, 60000);
   setTimeout(checkReminders, 3000);
   loadTicketsToday();
+  switchTab('dash');
 }
 
 function fillOpSelects(){
