@@ -351,15 +351,17 @@ Usato per filtrare le assegnazioni.">FatherName</th>
 Clicca per vedere la ricevuta completa.">ID Ticket</th>
             <th data-tip="Ticket più recente compatibile con l'offerta Mondialone.
 Mostra importo, esito e sport.">Ticket idoneo</th>
-            <th style="text-align:right" data-tip="Volume totale scommesso dal giocatore
-nel periodo di riferimento (da febbraio).">Vol.Tot</th>
+            <th style="text-align:right" data-tip="Volume sport generato nel periodo promozionale
+(dai report giornalieri, include tutti i canali).
+Per i CONVERTITI questo coincide con il volume TAC.">Vol.Sport</th>
             <th style="text-align:right" data-tip="Indice Multi/Singola: rapporto tra scommesse multiple (accumulator) e scommesse singole × 100.
 &lt;100% = più singole
 =100% = pareggio
 &gt;100% = più multiple che singole
 (es. 167% = quasi 2 multi ogni singola)">%Multi</th>
-            <th style="text-align:right" data-tip="Volume scommesso specificamente su eventi Mondialone.
-— significa che non ha ancora usato la promo.">Vol.Mond</th>
+            <th style="text-align:right" data-tip="Volume qualificante per la promo Mondialone
+(scommesse che contano per la qualifica TAC).
+— = promo non ancora attivata.">Vol.Promo</th>
             <th data-tip="Operatore CRM assegnato a questo utente.
 Solo admin e supervisor possono modificarlo.">Operatore</th>
             <th data-tip="Esito della chiamata registrato dall'operatore.
@@ -1122,7 +1124,7 @@ function renderTable(){
       <td><span class="trend-badge ${TREND_CSS[u.t]||''}">${u.t}</span></td>
       <td style="text-align:center">${hasId?`<span class="ticket-id" onclick="openBetReceipt('${u.id}',event)" title="Clicca per vedere la giocata">${u.id} 👁</span>`:'<span style="color:#D1D5DB">—</span>'}</td>
       <td style="font-size:11px;max-width:120px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="${u.tl||''}">${u.tl||'—'}</td>
-      <td style="text-align:right;font-size:11px">€${u.vt.toLocaleString('it-IT')}</td>
+      <td style="text-align:right;font-size:11px">${(()=>{const _s=STORICO_SPORT&&STORICO_SPORT[u.u.toLowerCase()];const _v=(_s&&_s.h_vol)||u.h_vol||u.vt||0;return _v>0?'€'+Math.round(_v).toLocaleString('it-IT'):'-';})()}</td>
       <td style="text-align:right;font-size:11px">${u.pm}%</td>
       <td style="text-align:right;font-size:11px">${u.vm>0?'€'+u.vm.toLocaleString('it-IT'):'-'}</td>
       <td onclick="event.stopPropagation()">${canAssign?`<select class="op-sel" onchange="setOp('${u.u}',this.value)">${opOpts}</select>`:`<span style="font-size:11px;color:#374151;font-weight:600;padding:2px 4px">${st.op||'—'}</span>`}</td>
