@@ -360,14 +360,12 @@ Clicca per vedere la ricevuta completa.">ID Ticket</th>
 Mostra importo, esito e sport.">Ticket idoneo</th>
             <th style="text-align:right" data-tip="Volume sport generato nel periodo promozionale
 (dai report giornalieri, include tutti i canali).
-Per i CONVERTITI questo coincide con il volume TAC.">Vol.Sport</th>
-            <th style="text-align:right" data-tip="Indice Multi/Singola: rapporto tra scommesse multiple (accumulator) e scommesse singole × 100.
-&lt;100% = più singole
-=100% = pareggio
-&gt;100% = più multiple che singole
-(es. 167% = quasi 2 multi ogni singola)">%Multi</th>
+Per i CONVERTITI questo coincide con il volume Indirette.">Vol.Sport</th>
+            <th style="text-align:right" data-tip="% di ticket multipli sul totale storico dell'utente.
+Esempio: 70% = 7 ticket su 10 erano scommesse multiple (accumulator).
+Più è alta, più il giocatore usa combinazioni.">%Multi</th>
             <th style="text-align:right" data-tip="Volume qualificante per la promo Mondialone
-(scommesse che contano per la qualifica TAC).
+(scommesse che contano per la qualifica Mondialone).
 — = promo non ancora attivata.">Vol.Promo</th>
             <th data-tip="Operatore CRM assegnato a questo utente.
 Solo admin e supervisor possono modificarlo.">Operatore</th>
@@ -406,7 +404,9 @@ L'operatore riceve una notifica all'orario scelto.">📞</th>
         <table><thead><tr>
           <th>Username</th><th>FatherName</th><th>Filiera</th><th>Categoria</th><th>Trend</th>
           <th>Compat.</th><th>Mondialone</th><th style="text-align:right">Vol.Tot €</th>
-          <th style="text-align:right">TK</th><th style="text-align:right">%Multi</th>
+          <th style="text-align:right">TK</th><th style="text-align:right" data-tip="% di ticket multipli sul totale storico dell'utente.
+Esempio: 70% = 7 ticket su 10 erano scommesse multiple (accumulator).
+Più è alta, più il giocatore usa combinazioni.">%Multi</th>
           <th style="text-align:right">Vol.Mond €</th><th style="text-align:right">Score</th>
         </tr></thead><tbody id="tutti-tbody"></tbody></table>
         <div class="pagination" id="tutti-pag"></div>
@@ -422,7 +422,9 @@ L'operatore riceve una notifica all'orario scelto.">📞</th>
         <table><thead><tr>
           <th>#</th><th>Username</th><th>FatherName</th><th>Filiera</th>
           <th style="text-align:right">Vol.Mond €</th><th style="text-align:right">TK Mond</th>
-          <th style="text-align:right">Vol.Tot €</th><th style="text-align:right">%Multi</th>
+          <th style="text-align:right">Vol.Tot €</th><th style="text-align:right" data-tip="% di ticket multipli sul totale storico dell'utente.
+Esempio: 70% = 7 ticket su 10 erano scommesse multiple (accumulator).
+Più è alta, più il giocatore usa combinazioni.">%Multi</th>
         </tr></thead><tbody id="conv-tbody"></tbody></table>
       </div>
     </div>
@@ -2410,14 +2412,48 @@ function renderDashboard() {
     const volPromo = inPromo.reduce((s,q)=>s+(q.vq||0),0);
 
     const kpiEl = document.getElementById('dash-kpi-row');
-    if(kpiEl) kpiEl.innerHTML = [
-      {l:'QUALIFICATI', v:_fmtN(tot), sub:'totale promo', c:'#3B82F6', pct:100},
-      {l:'IN PROMO', v:_fmtN(inPromo.length), sub:Math.round(inPromo.length/tot*100)+'% qualif.', c:'#059669', pct:Math.round(inPromo.length/tot*100)},
-      {l:'ATTIVI NO PROMO', v:_fmtN(attivi.length), sub:Math.round(attivi.length/tot*100)+'% qualif.', c:'#F59E0B', pct:Math.round(attivi.length/tot*100)},
-      {l:'INATTIVI', v:_fmtN(inatt.length), sub:Math.round(inatt.length/tot*100)+'% qualif.', c:'#EF4444', pct:Math.round(inatt.length/tot*100)},
-      {l:'VOL. PROMO', v:_fmtEuro(volPromo), sub:'tot. scommesso promo', c:'#8B5CF6', pct:null},
-      {l:'TOP 60', v:'60', sub:'in lavorazione op.', c:'#D97706', pct:Math.round(60/tot*100)},
-    ].map(k=>'<div class="dash-kpi-card" style="border-top-color:'+k.c+'"><div class="dkl">'+k.l+'</div><div class="dkv" style="color:'+k.c+'">'+k.v+'</div><div class="dks">'+k.sub+'</div>'+(k.pct!==null?'<div class="dkbar"><div class="dkbar-fill" style="width:'+k.pct+'%;background:'+k.c+'"></div></div>':'')+'</div>').join('');
+    if(kpiEl){
+      const convPct = Math.round(inPromo.length/tot*100);
+      const attPct  = Math.round(attivi.length/tot*100);
+      const inactPct= Math.round(inatt.length/tot*100);
+      // Hero bar promo
+      const heroHtml =
+        '<div style="background:linear-gradient(135deg,#064E3B 0%,#065F46 100%);border-radius:12px;padding:16px 20px;margin-bottom:12px;color:#fff">'
+        +'<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px">'
+        +'<div>'
+        +'<div style="font-size:10px;font-weight:700;letter-spacing:1px;opacity:.7;text-transform:uppercase">🏆 Andamento Promo Mondialone</div>'
+        +'<div style="font-size:28px;font-weight:900;line-height:1.1;margin-top:2px">'+inPromo.length+' <span style="font-size:14px;font-weight:600;opacity:.8">/ '+tot+' convertiti</span></div>'
+        +'</div>'
+        +'<div style="text-align:right">'
+        +'<div style="font-size:36px;font-weight:900;color:#6EE7B7">'+convPct+'%</div>'
+        +'<div style="font-size:10px;opacity:.7">tasso conversione</div>'
+        +'</div>'
+        +'</div>'
+        // Barra stacked
+        +'<div style="height:10px;border-radius:5px;background:rgba(255,255,255,.15);overflow:hidden;display:flex;gap:0">'
+        +'<div data-tip="'+inPromo.length+' in promo ('+convPct+'%)" style="width:'+convPct+'%;background:#34D399;border-radius:5px 0 0 5px;transition:width .4s"></div>'
+        +'<div data-tip="'+attivi.length+' attivi senza promo ('+attPct+'%)" style="width:'+attPct+'%;background:#FCD34D"></div>'
+        +'<div data-tip="'+inatt.length+' inattivi ('+inactPct+'%)" style="width:'+inactPct+'%;background:#F87171;border-radius:0 5px 5px 0"></div>'
+        +'</div>'
+        // Legenda
+        +'<div style="display:flex;gap:16px;margin-top:8px;font-size:10px;opacity:.85">'
+        +'<span><span style="color:#34D399">●</span> In promo: '+inPromo.length+'</span>'
+        +'<span><span style="color:#FCD34D">●</span> Attivi no promo: '+attivi.length+'</span>'
+        +'<span><span style="color:#F87171">●</span> Inattivi: '+inatt.length+'</span>'
+        +'<span style="margin-left:auto;opacity:.7">Vol. promo: '+_fmtEuro(volPromo)+'</span>'
+        +'</div>'
+        +'</div>';
+      // KPI row compatta sotto
+      const kpiCards = [
+        {l:'QUALIFICATI', v:_fmtN(tot), sub:'totale pool', c:'#3B82F6'},
+        {l:'IN PROMO', v:_fmtN(inPromo.length), sub:convPct+'% del pool', c:'#059669'},
+        {l:'ATTIVI (no promo)', v:_fmtN(attivi.length), sub:attPct+'% del pool', c:'#F59E0B'},
+        {l:'INATTIVI', v:_fmtN(inatt.length), sub:inactPct+'% del pool', c:'#EF4444'},
+        {l:'VOL. PROMO', v:_fmtEuro(volPromo), sub:'scommesso Indirette', c:'#8B5CF6'},
+        {l:'TOP 60', v:'60', sub:'lista operatori', c:'#D97706'},
+      ].map(k=>'<div class="dash-kpi-card" style="border-top-color:'+k.c+'"><div class="dkl">'+k.l+'</div><div class="dkv" style="color:'+k.c+'">'+k.v+'</div><div class="dks">'+k.sub+'</div></div>').join('');
+      kpiEl.innerHTML = heroHtml + '<div class="dash-kpi-row" style="margin-bottom:0">'+kpiCards+'</div>';
+    }
 
     const badge = document.getElementById('dash-inatt-badge');
     if(badge) badge.textContent = inatt.length;
@@ -2484,7 +2520,7 @@ function _dashRiepilogo(list,inPromo,attivi,inatt) {
     +'<div style="margin-top:12px;padding:10px;background:#F9FAFB;border-radius:8px;font-size:11px;color:#6B7280">'
     +'<strong style="color:#374151">Dati al:</strong> '+(DATA_DATE||'—')+'&nbsp;&middot;&nbsp;'
     +'<strong style="color:#374151">Filiera:</strong> '+dashFiliera+'&nbsp;&middot;&nbsp;'
-    +'<strong style="color:#374151">TAC:</strong> '+(TAC_USERS?_fmtN(TAC_USERS.length)+' utenti':'caricamento...')
+    +'<strong style="color:#374151">Indirette:</strong> '+(TAC_USERS?_fmtN(TAC_USERS.length)+' utenti':'caricamento...')
     +'</div></div></div>';
 }
 
@@ -2502,7 +2538,7 @@ function _dashQualif(list) {
     +'<option value="inatt">Inattivi ('+innCount+')</option>'
     +'</select><span id="dash-q-count" style="font-size:11px;color:#6B7280">'+list.length+' utenti</span></div>'
     +'<div style="overflow-x:auto;max-height:55vh;overflow-y:auto"><table class="dash-table"><thead><tr>'
-    +'<th>#</th><th>Username</th><th>Father</th><th>Data Qualif.</th><th>Stato</th><th>Vol. TAC</th><th>Vol. Promo</th><th>% Multi</th>'
+    +'<th>#</th><th>Username</th><th>Father</th><th>Data Qualif.</th><th>Stato</th><th>Vol. Indirette</th><th>Vol. Promo</th><th>% Multi</th>'
     +'</tr></thead><tbody id="dash-q-tbody">'+_dashQualifRows(list,200)+'</tbody></table></div>';
 }
 
