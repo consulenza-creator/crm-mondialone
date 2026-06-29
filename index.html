@@ -380,15 +380,15 @@ Usato per filtrare le assegnazioni.">FatherName</th>
 Clicca per vedere la ricevuta completa.">ID Ticket</th>
             <th data-tip="Ticket più recente compatibile con l'offerta Mondialone.
 Mostra importo, esito e sport.">Ticket idoneo</th>
-            <th style="text-align:right" data-tip="Volume sport generato nel periodo promozionale
-(dai report giornalieri, include tutti i canali).
-Per i CONVERTITI questo coincide con il volume Mondialone.">Vol.Sport</th>
+            <th style="text-align:right" data-tip="Volume sport totale generato nel periodo promozionale
+(da report giornalieri, include tutti i canali e sport).
+Non è il volume Mondialone — vedi Vol.Mond per quello.">Vol.Sport</th>
             <th style="text-align:right" data-tip="% di ticket multipli sul totale storico dell'utente.
 Esempio: 70% = 7 ticket su 10 erano scommesse multiple (accumulator).
 Più è alta, più il giocatore usa combinazioni.">%Multi</th>
-            <th style="text-align:right" data-tip="Volume qualificante per la promo Mondialone
-(scommesse che contano per la qualifica Mondialone).
-— = promo non ancora attivata.">Vol.Promo</th>
+            <th style="text-align:right" data-tip="Volume calcio indirette / Mondialone
+(scommesse sul calcio che qualificano per la promo Mondialone).
+— = nessun giocato Mondialone ancora.">Vol.Mond</th>
             <th data-tip="Operatore CRM assegnato a questo utente.
 Solo admin e supervisor possono modificarlo.">Operatore</th>
             <th data-tip="Esito della chiamata registrato dall'operatore.
@@ -1474,7 +1474,8 @@ function openScheda(username){
         <div class="stat-item"><div class="sv">${u.tk||u.tl||'—'}</div><div class="sl">Ticket totali</div></div>
         <div class="stat-item"><div class="sv">${u.pm?u.pm+'%':'—'}</div><div class="sl">% Multipla</div></div>
         <div class="stat-item"><div class="sv">${u.ps?u.ps+'%':'—'}</div><div class="sl">% Singole</div></div>
-        <div class="stat-item"><div class="sv">${u.vm>0?'€'+u.vm.toLocaleString('it-IT'):'-'}</div><div class="sl">Vol. Mondialone</div></div>
+        <div class="stat-item"><div class="sv">${u.vt>0?'€'+u.vt.toLocaleString('it-IT'):'-'}</div><div class="sl">Vol. Sport</div></div>
+        <div class="stat-item"><div class="sv">${u.vm>0?'€'+u.vm.toLocaleString('it-IT'):'-'}</div><div class="sl">Vol. Mond</div></div>
       </div>
     </div>
     ${(u.cls||u.yield_!=null)?``+function(){
