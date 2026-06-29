@@ -285,10 +285,10 @@ th[data-tip],[data-tip]{cursor:help}
   <div class="tab-bar">
     <div class="tab active" id="tab-dash" onclick="switchTab('dash')">📊 Dashboard</div>
     <div class="tab" id="tab-oggi" onclick="switchTab('oggi')">📋 Chiamate <span class="tab-count" id="tc-oggi">60</span></div>
+    <div class="tab" id="tab-mie" onclick="switchTab('mie')">📞 Le Mie <span class="tab-count" id="tc-mie">0</span></div>
     <div class="tab" id="tab-monitor" onclick="switchTab('monitor')">📊 Monitor</div>
     <div class="tab" id="tab-tutti" onclick="switchTab('tutti')">👥 Tutti gli utenti <span class="tab-count" id="tc-tutti">...</span></div>
     <div class="tab" id="tab-conv" onclick="switchTab('conv')">🏆 Convertiti <span class="tab-count" id="tc-conv">0</span></div>
-    <div class="tab" id="tab-mie" onclick="switchTab('mie')">📞 Le Mie <span class="tab-count" id="tc-mie">0</span></div>
     <div class="tab" id="tab-qualif" onclick="switchTab('qualif')">🌍 Qualificati <span class="tab-count" id="tc-qualif">1343</span></div>
   </div>
   <div class="main-content">
@@ -1843,23 +1843,24 @@ function renderMie(){
 function renderAndamentoChiamate(){
   const pane=document.getElementById('pane-mie');
 
-  // Raccogli stats per operatore
-  const opStats={};
   const ESITI=['ATTIVATO','NON INTERESSATO','SCHEDINA INVIATA','RICHIAMATA','NON RAGGIUNTO'];
   const ESITO_COLOR={'ATTIVATO':'#059669','NON INTERESSATO':'#EF4444','SCHEDINA INVIATA':'#3B82F6','RICHIAMATA':'#F59E0B','NON RAGGIUNTO':'#94A3B8'};
 
-  // Scansiona callState direttamente (non solo TOP60 corrente,
-  // perché TOP60 cambia ogni giorno e perderemmo le chiamate storiche)
-  // Storico giornaliero basato su lockedAt
-  const dayStats={};  // {YYYY-MM-DD: {total, esiti: {}}}
+  // Raccogli dati per operatore
+  const opStats={};
+  const opUsers={}; // {opName: [{uName, st, sc}]}
+  const dayStats={};
+
   Object.entries(callState).forEach(([uName,st])=>{
     if(!st.op)return;
-    if(!opStats[st.op])opStats[st.op]={name:st.op,total:0,worked:0,pending:0,esiti:{}};
+    if(!opStats[st.op])opStats[st.op]={name:st.op,total:0,worked:0,pending:0,esiti:{},attivati:0};
+    if(!opUsers[st.op])opUsers[st.op]=[];
     opStats[st.op].total++;
+    opUsers[st.op].push({uName,st});
     if(st.esito){
       opStats[st.op].worked++;
       opStats[st.op].esiti[st.esito]=(opStats[st.op].esiti[st.esito]||0)+1;
-      // Aggiungi a storico giornaliero
+      if(st.esito==='ATTIVATO')opStats[st.op].attivati++;
       if(st.lockedAt){
         const day=new Date(st.lockedAt).toISOString().slice(0,10);
         if(!dayStats[day])dayStats[day]={total:0,esiti:{}};
@@ -1881,67 +1882,149 @@ function renderAndamentoChiamate(){
 
   const totalAll=rows.reduce((s,r)=>s+r.total,0);
   const workedAll=rows.reduce((s,r)=>s+r.worked,0);
+  const attivatiAll=rows.reduce((s,r)=>s+r.attivati,0);
   const pct=totalAll>0?Math.round(workedAll/totalAll*100):0;
+  const convRate=workedAll>0?Math.round(attivatiAll/workedAll*100):0;
 
-  pane.innerHTML=`
-  <div style="padding:16px">
-    <div style="display:flex;gap:8px;margin-bottom:16px;flex-wrap:wrap">
-      <div style="flex:1;background:#EFF6FF;border-radius:10px;padding:12px 16px;min-width:120px">
-        <div style="font-size:10px;color:#1E40AF;font-weight:700;text-transform:uppercase;letter-spacing:.5px">👥 Operatori</div>
-        <div style="font-size:28px;font-weight:800;color:#2563EB;line-height:1.1">${rows.length}</div>
-      </div>
-      <div style="flex:1;background:#D1FAE5;border-radius:10px;padding:12px 16px;min-width:120px">
-        <div style="font-size:10px;color:#065F46;font-weight:700;text-transform:uppercase;letter-spacing:.5px">✅ Lavorate</div>
-        <div style="font-size:28px;font-weight:800;color:#059669;line-height:1.1">${workedAll}</div>
-        <div style="font-size:10px;color:#065F46">${pct}% del totale</div>
-      </div>
-      <div style="flex:1;background:#FEF3C7;border-radius:10px;padding:12px 16px;min-width:120px">
-        <div style="font-size:10px;color:#92400E;font-weight:700;text-transform:uppercase;letter-spacing:.5px">⏳ Pendenti</div>
-        <div style="font-size:28px;font-weight:800;color:#D97706;line-height:1.1">${totalAll-workedAll}</div>
-      </div>
-    </div>
+  // Storico giornaliero
+  const days=Object.keys(dayStats).sort().reverse().slice(0,14);
+  const maxD=days.length?Math.max(...days.map(d=>dayStats[d].total)):0;
+  const dayHtml=days.length?'<div style="margin-top:4px">'
+    +days.map(d=>{
+      const ds=dayStats[d];
+      const dpct=maxD>0?Math.round(ds.total/maxD*100):0;
+      const att=ds.esiti['ATTIVATO']||0;
+      const label=new Date(d+'T12:00:00').toLocaleDateString('it-IT',{weekday:'short',day:'2-digit',month:'2-digit'});
+      const attH=att>0?'<span style="background:#D1FAE5;color:#059669;border-radius:4px;padding:1px 5px;font-size:10px;font-weight:700;margin-left:4px">✅'+att+'</span>':'';
+      return '<div style="display:flex;align-items:center;gap:8px;margin-bottom:4px">'
+        +'<div style="width:68px;font-size:10px;color:#64748B;flex-shrink:0">'+label+'</div>'
+        +'<div style="flex:1;background:#F1F5F9;border-radius:3px;height:16px;position:relative;overflow:hidden">'
+        +'<div style="background:#3B82F6;height:100%;width:'+dpct+'%;border-radius:3px;transition:width .3s"></div>'
+        +'<span style="position:absolute;left:5px;top:2px;font-size:9px;font-weight:700;color:#1E40AF">'+ds.total+'</span>'
+        +'</div>'+attH+'</div>';
+    }).join('')
+    +'</div>':'<div style="font-size:11px;color:#94A3B8;padding:8px 0">Nessun dato storico ancora</div>';
 
-    <div style="font-size:12px;font-weight:700;color:#475569;text-transform:uppercase;letter-spacing:.5px;margin-bottom:10px">📊 Per Operatore</div>
+  // Costruisci HTML
+  pane.innerHTML='<div style="padding:12px 16px">'
 
-    ${rows.map(op=>{
-      const opPct=op.total>0?Math.round(op.worked/op.total*100):0;
-      const attivati=op.esiti['ATTIVATO']||0;
-      const esitiStr=ESITI.filter(e=>op.esiti[e]).map(e=>`<span style="background:${ESITO_COLOR[e]}22;color:${ESITO_COLOR[e]};border-radius:4px;padding:1px 6px;font-size:10px;font-weight:700;white-space:nowrap">${e.split(' ')[0]} ${op.esiti[e]}</span>`).join(' ');
-      return `<div style="background:#F8FAFC;border:1px solid #E2E8F0;border-radius:10px;padding:12px 16px;margin-bottom:8px">
-        <div style="display:flex;align-items:center;gap:8px;margin-bottom:8px">
-          <div style="font-size:14px;font-weight:800;color:#1E293B;flex:1">${op.name}</div>
-          <div style="font-size:11px;color:#64748B">${op.worked}/${op.total} lavorate</div>
-          <div style="font-size:12px;font-weight:700;color:${opPct>=70?'#059669':opPct>=40?'#D97706':'#EF4444'}">${opPct}%</div>
-        </div>
-        <div style="background:#E2E8F0;border-radius:4px;height:6px;margin-bottom:8px;overflow:hidden">
-          <div style="background:${opPct>=70?'#059669':opPct>=40?'#F59E0B':'#EF4444'};height:100%;width:${opPct}%;border-radius:4px;transition:width .3s"></div>
-        </div>
-        <div style="display:flex;flex-wrap:wrap;gap:4px">${esitiStr||'<span style="font-size:10px;color:#94A3B8">Nessuna lavorazione</span>'}</div>
-      </div>`;
-    }).join('')}
+    // KPI globali
+    +'<div style="display:flex;gap:8px;margin-bottom:14px;flex-wrap:wrap">'
+    +'<div data-tip="Numero di operatori con almeno una chiamata assegnata" style="flex:1;background:#EFF6FF;border-radius:10px;padding:10px 14px;min-width:100px"><div style="font-size:9px;color:#1E40AF;font-weight:700;text-transform:uppercase">👥 Operatori</div><div style="font-size:26px;font-weight:800;color:#2563EB">'+rows.length+'</div></div>'
+    +'<div data-tip="Chiamate con esito già registrato su totale assegnate ('+workedAll+'/'+totalAll+')" style="flex:1;background:#D1FAE5;border-radius:10px;padding:10px 14px;min-width:100px"><div style="font-size:9px;color:#065F46;font-weight:700;text-transform:uppercase">✅ Lavorate</div><div style="font-size:26px;font-weight:800;color:#059669">'+workedAll+'</div><div style="font-size:9px;color:#065F46">'+pct+'% del totale</div></div>'
+    +'<div data-tip="Chiamate con esito ATTIVATO — utenti che hanno aderito alla promo" style="flex:1;background:#F0FDF4;border-radius:10px;padding:10px 14px;min-width:100px"><div style="font-size:9px;color:#14532D;font-weight:700;text-transform:uppercase">🏆 Attivati</div><div style="font-size:26px;font-weight:800;color:#16A34A">'+attivatiAll+'</div><div style="font-size:9px;color:#14532D">'+convRate+'% delle lavorate</div></div>'
+    +'<div data-tip="Chiamate assegnate ma senza esito ancora" style="flex:1;background:#FEF3C7;border-radius:10px;padding:10px 14px;min-width:100px"><div style="font-size:9px;color:#92400E;font-weight:700;text-transform:uppercase">⏳ Pendenti</div><div style="font-size:26px;font-weight:800;color:#D97706">'+(totalAll-workedAll)+'</div></div>'
+    +'</div>'
 
-    ${(()=>{
-      const days=Object.keys(dayStats).sort().reverse().slice(0,14);
-      if(!days.length)return '';
-      const maxD=Math.max(...days.map(d=>dayStats[d].total));
-      const dRows=days.map(d=>{
-        const ds=dayStats[d];
-        const pct=maxD>0?Math.round(ds.total/maxD*100):0;
-        const att=ds.esiti['ATTIVATO']||0;
-        const label=new Date(d+'T12:00:00').toLocaleDateString('it-IT',{weekday:'short',day:'2-digit',month:'2-digit'});
-        const attHtml=att>0?'<span style="background:#D1FAE5;color:#059669;border-radius:4px;padding:1px 6px;font-size:10px;font-weight:700">✅'+att+'</span>':'';
-        return '<div style="display:flex;align-items:center;gap:8px;margin-bottom:5px">'
-          +'<div style="width:72px;font-size:10px;color:#64748B;flex-shrink:0">'+label+'</div>'
-          +'<div style="flex:1;background:#F1F5F9;border-radius:4px;height:18px;position:relative;overflow:hidden">'
-          +'<div style="background:#3B82F6;height:100%;width:'+pct+'%;border-radius:4px;transition:width .3s"></div>'
-          +'<span style="position:absolute;left:6px;top:2px;font-size:10px;font-weight:700;color:#1E40AF">'+ds.total+' chiamate</span>'
-          +'</div>'
-          +attHtml
-          +'</div>';
-      }).join('');
-      return '<div style="margin-top:16px"><div style="font-size:12px;font-weight:700;color:#475569;text-transform:uppercase;letter-spacing:.5px;margin-bottom:8px">📅 Storico Giornaliero (ultimi '+days.length+' giorni)</div>'+dRows+'</div>';
-    })()}
-  </div>`;
+    // Sub-nav andamento
+    +'<div style="display:flex;gap:6px;margin-bottom:12px;border-bottom:1px solid #E5E7EB;padding-bottom:8px">'
+    +'<button id="and-btn-op" onclick="window._andTab=\'op\';renderAndamentoChiamate()" style="padding:4px 12px;border-radius:6px;font-size:11px;font-weight:700;border:none;cursor:pointer;background:#1E40AF;color:#fff">👥 Per Operatore</button>'
+    +'<button id="and-btn-st" onclick="window._andTab=\'st\';renderAndamentoChiamate()" style="padding:4px 12px;border-radius:6px;font-size:11px;font-weight:700;border:none;cursor:pointer;background:#F1F5F9;color:#374151">📅 Storico</button>'
+    +'<button id="and-btn-rp" onclick="window._andTab=\'rp\';renderAndamentoChiamate()" style="padding:4px 12px;border-radius:6px;font-size:11px;font-weight:700;border:none;cursor:pointer;background:#F1F5F9;color:#374151">📊 Report Hub</button>'
+    +'</div>'
+
+    // Contenuto sub-tab
+    +'<div id="and-content">'
+    +_andContent(rows,opUsers,ESITI,ESITO_COLOR,dayHtml,attivatiAll,workedAll,totalAll,convRate)
+    +'</div>'
+    +'</div>';
+}
+
+function _andContent(rows,opUsers,ESITI,ESITO_COLOR,dayHtml,attivatiAll,workedAll,totalAll,convRate){
+  const tab=window._andTab||'op';
+
+  if(tab==='st'){
+    return '<div style="font-size:12px;font-weight:700;color:#475569;text-transform:uppercase;letter-spacing:.5px;margin-bottom:10px">📅 Storico Giornaliero (ultimi '+(window._and_days||14)+' giorni)</div>'+dayHtml;
+  }
+
+  if(tab==='rp'){
+    // Report Promo Hub
+    const totNotes=Object.values(schedeState).filter(s=>s.note||s.noteOp||s.storico).length;
+    const totSchede=Object.keys(schedeState).length;
+    const rows2=Object.values(opUsers||{});
+    let opRptHtml='';
+    Object.entries(opUsers||{}).forEach(([opName,users])=>{
+      const worked=users.filter(u=>u.st.esito).length;
+      const att=users.filter(u=>u.st.esito==='ATTIVATO').length;
+      const notes=users.filter(u=>{const sc=schedeState[u.uName]||{};return sc.note||sc.noteOp;}).length;
+      const conv=worked>0?Math.round(att/worked*100):0;
+      const attColor=conv>=30?'#059669':conv>=15?'#D97706':'#EF4444';
+      opRptHtml+='<tr>'
+        +'<td style="font-weight:700">'+opName+'</td>'
+        +'<td style="text-align:center">'+users.length+'</td>'
+        +'<td style="text-align:center">'+worked+'</td>'
+        +'<td style="text-align:center;color:#6B7280">'+(users.length-worked)+'</td>'
+        +'<td style="text-align:center;color:#059669;font-weight:700">'+att+'</td>'
+        +'<td style="text-align:center;font-weight:700;color:'+attColor+'">'+conv+'%</td>'
+        +'<td style="text-align:center;color:#7C3AED">'+notes+'</td>'
+        +'</tr>';
+    });
+    return '<div style="font-size:12px;font-weight:700;color:#475569;text-transform:uppercase;letter-spacing:.5px;margin-bottom:10px">📊 Report Promo Hub — Performance Operatori</div>'
+      +'<div style="overflow-x:auto"><table style="width:100%;border-collapse:collapse;font-size:12px">'
+      +'<thead><tr style="background:#F8FAFC;font-size:10px;color:#6B7280;text-transform:uppercase">'
+      +'<th style="text-align:left;padding:8px 10px;border-bottom:2px solid #E5E7EB">Operatore</th>'
+      +'<th style="text-align:center;padding:8px 6px;border-bottom:2px solid #E5E7EB" title="Chiamate assegnate totali">Assegnate</th>'
+      +'<th style="text-align:center;padding:8px 6px;border-bottom:2px solid #E5E7EB" title="Chiamate con esito">Lavorate</th>'
+      +'<th style="text-align:center;padding:8px 6px;border-bottom:2px solid #E5E7EB">Pendenti</th>'
+      +'<th style="text-align:center;padding:8px 6px;border-bottom:2px solid #E5E7EB;color:#059669">✅ Attivati</th>'
+      +'<th style="text-align:center;padding:8px 6px;border-bottom:2px solid #E5E7EB">Conv.%</th>'
+      +'<th style="text-align:center;padding:8px 6px;border-bottom:2px solid #E5E7EB;color:#7C3AED">📝 Note</th>'
+      +'</tr></thead>'
+      +'<tbody>'+opRptHtml+'</tbody>'
+      +'<tfoot><tr style="background:#F0FDF4;font-weight:700;font-size:11px">'
+      +'<td style="padding:8px 10px">TOTALE</td>'
+      +'<td style="text-align:center">'+totalAll+'</td>'
+      +'<td style="text-align:center">'+workedAll+'</td>'
+      +'<td style="text-align:center;color:#6B7280">'+(totalAll-workedAll)+'</td>'
+      +'<td style="text-align:center;color:#059669">'+attivatiAll+'</td>'
+      +'<td style="text-align:center;color:'+(convRate>=20?'#059669':'#D97706')+'">'+convRate+'%</td>'
+      +'<td style="text-align:center;color:#7C3AED">'+Object.values(schedeState).filter(s=>s.note||s.noteOp).length+'</td>'
+      +'</tr></tfoot>'
+      +'</table></div>';
+  }
+
+  // Default: Per Operatore
+  return rows.map(op=>{
+    const opPct=op.total>0?Math.round(op.worked/op.total*100):0;
+    const esitiStr=ESITI.filter(e=>op.esiti[e]).map(e=>'<span style="background:'+ESITO_COLOR[e]+'22;color:'+ESITO_COLOR[e]+';border-radius:4px;padding:1px 6px;font-size:10px;font-weight:700;white-space:nowrap">'+e.split(' ')[0]+' '+op.esiti[e]+'</span>').join(' ');
+    const opId='op-users-'+op.name.replace(/\s/g,'_');
+    // Lista utenti lavorati
+    const usersHtml=(opUsers[op.name]||[]).sort((a,b)=>{
+      if(a.st.esito&&!b.st.esito)return -1;
+      if(!a.st.esito&&b.st.esito)return 1;
+      return 0;
+    }).map(({uName,st})=>{
+      const sc=schedeState[uName]||{};
+      const noteP=(sc.note||st.note||'').substring(0,45);
+      const ec=ESITO_COLOR[st.esito]||'#94A3B8';
+      const esitoHtml=st.esito?'<span style="background:'+ec+'18;color:'+ec+';border-radius:3px;padding:1px 5px;font-size:9px;font-weight:700">'+st.esito+'</span>':'<span style="color:#94A3B8;font-size:9px">pendente</span>';
+      const lockedAt=st.lockedAt?new Date(st.lockedAt).toLocaleDateString('it-IT'):'—';
+      return '<div onclick="openScheda(\''+uName+'\')" style="display:flex;align-items:center;gap:8px;padding:6px 10px;border-bottom:1px solid #F1F5F9;cursor:pointer;transition:background .1s" onmouseover="this.style.background=\'#F8FAFC\'" onmouseout="this.style.background=\'none\'">'
+        +'<div style="flex:1;min-width:0">'
+        +'<div style="display:flex;align-items:center;gap:6px"><span style="font-weight:700;font-size:12px;color:#0F172A">'+uName+'</span>'+esitoHtml+'</div>'
+        +(noteP?'<div style="font-size:9px;color:#94A3B8;font-style:italic;margin-top:1px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">📝 '+noteP+'</div>':'')
+        +'</div>'
+        +'<div style="font-size:9px;color:#CBD5E1;flex-shrink:0">'+lockedAt+'</div>'
+        +'<div style="color:#CBD5E1;font-size:14px">›</div>'
+        +'</div>';
+    }).join('');
+
+    return '<div style="background:#F8FAFC;border:1px solid #E2E8F0;border-radius:10px;margin-bottom:8px;overflow:hidden">'
+      +'<div style="padding:12px 16px">'
+      +'<div style="display:flex;align-items:center;gap:8px;margin-bottom:6px">'
+      +'<div style="font-size:14px;font-weight:800;color:#1E293B;flex:1">'+op.name+'</div>'
+      +'<div style="font-size:11px;color:#64748B">'+op.worked+'/'+op.total+' lavorate</div>'
+      +'<div style="font-size:12px;font-weight:700;color:'+(opPct>=70?'#059669':opPct>=40?'#D97706':'#EF4444')+'">'+opPct+'%</div>'
+      +'<button onclick="(function(){var el=document.getElementById(\''+opId+'\');el.style.display=el.style.display===\'none\'?\'block\':\'none\';})()" style="background:#EFF6FF;color:#1E40AF;border:none;border-radius:6px;padding:3px 10px;font-size:10px;font-weight:700;cursor:pointer">👤 Utenti</button>'
+      +'</div>'
+      +'<div style="background:#E2E8F0;border-radius:4px;height:5px;margin-bottom:6px;overflow:hidden">'
+      +'<div style="background:'+(opPct>=70?'#059669':opPct>=40?'#F59E0B':'#EF4444')+';height:100%;width:'+opPct+'%;border-radius:4px;transition:width .3s"></div>'
+      +'</div>'
+      +'<div style="display:flex;flex-wrap:wrap;gap:4px">'+( esitiStr||'<span style="font-size:10px;color:#94A3B8">Nessuna lavorazione</span>')+'</div>'
+      +'</div>'
+      +'<div id="'+opId+'" style="display:none;border-top:1px solid #E5E7EB;background:#fff;max-height:280px;overflow-y:auto">'+usersHtml+'</div>'
+      +'</div>';
+  }).join('');
 }
 
 
