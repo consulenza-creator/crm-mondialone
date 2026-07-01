@@ -2814,13 +2814,12 @@ const TG_TOKEN='8251450164:AAGmQx-q7GZ7v9Xs0HDHYNjHWL8A6PKdAg4';
 
 async function sendTelegram(chatId, text){
   if(!chatId)return;
-  try{
-    await fetch(`https://api.telegram.org/bot${TG_TOKEN}/sendMessage`,{
-      method:'POST',
-      headers:{'Content-Type':'application/json'},
-      body:JSON.stringify({chat_id:chatId,text,parse_mode:'HTML'})
-    });
-  }catch(e){}
+  const r=await fetch(`https://api.telegram.org/bot${TG_TOKEN}/sendMessage`,{
+    method:'POST',
+    headers:{'Content-Type':'application/json'},
+    body:JSON.stringify({chat_id:chatId,text,parse_mode:'HTML'})
+  });
+  if(!r.ok){const b=await r.text();throw new Error('TG '+r.status+': '+b.substring(0,80));}
 }
 
 async function notifyOpAssigned(username, opName){
@@ -3677,13 +3676,13 @@ async function commPubblica(){
   const payload={titolo,testo,tipo,autore:currentUser.name,timestamp:new Date().toISOString(),destinatari};
   _commSt('Pubblicazione...');
   try{
-    const r=await fetch(FB_URL+'/comunicazioni/latest.json',{
-      method:'PUT',headers:{'Content-Type':'application/json'},body:JSON.stringify(payload)
-    });
-    const body=await r.text();
-    if(!r.ok) throw new Error('HTTP '+r.status+': '+body.substring(0,100));
-    document.getElementById('comm-titolo').value='';
-    document.getElementById('comm-testo').value='';
+    // Salva dentro callState._comm — usa lo stesso path /state/v1 che funziona sempre
+    callState._comm = payload;
+    localStorage.setItem(LS_STATE(), JSON.stringify(callState));
+    fbSave(); // PUT a /state/v1.json — path garantito
+    const tEl=document.getElementById('comm-titolo');
+    const txEl=document.getElementById('comm-testo');
+    if(tEl)tEl.value='';if(txEl)txEl.value='';
     const dest=destinatari?destinatari.join(', '):'tutti';
     _commSt('✅ Pubblicata per: '+dest);
     toast('✅ Comunicazione pubblicata');
@@ -3715,7 +3714,14 @@ async function fbPubblicaComunicazione(){commPubblica();}
 async function inviaCommTelegram(){commInviaTelegram();}
 
 async function fbLoadComunicazione(){
-  try{const r=await fetch(FB_URL+'/comunicazioni/latest.json');if(!r.ok)return null;return await r.json();}catch(e){return null;}
+  // Prima cerca in callState._comm (via Firebase state), poi fallback path diretto
+  if(callState&&callState._comm) return callState._comm;
+  try{
+    const r=await fetch(FB_URL+'/state/v1.json');
+    if(!r.ok)return null;
+    const d=await r.json();
+    return (d&&d._comm)||null;
+  }catch(e){return null;}
 }
 
 async function loadCommPreview(){
