@@ -831,20 +831,28 @@ Più è alta, più il giocatore usa combinazioni.">%Multi</th>
     <!-- TAB SISTEMA -->
     <div class="sp-pane" id="sp-pane-sys">
       <div class="sp-section" id="sp-comm-section">
-        <h4>📢 Comunicazioni operatori</h4>
-        <div style="margin-bottom:8px">
-          <select id="comm-tipo" class="sp-select" style="margin-bottom:0">
-            <option value="urgente">🔴 Urgente</option>
-            <option value="aggiornamento" selected>🟡 Aggiornamento</option>
-            <option value="info">🟢 Info</option>
-          </select>
-        </div>
-        <input id="comm-titolo" class="sp-input" placeholder="Titolo comunicazione">
+        <h4>📢 Comunicazione operatori</h4>
+        <select id="comm-tipo" class="sp-select">
+          <option value="urgente">🔴 Urgente</option>
+          <option value="aggiornamento" selected>🟡 Aggiornamento</option>
+          <option value="info">🟢 Info</option>
+        </select>
+        <input id="comm-titolo" class="sp-input" placeholder="Titolo">
         <textarea id="comm-testo" class="sp-input" placeholder="Testo del messaggio..." rows="3" style="resize:vertical;font-family:inherit;font-size:12px;line-height:1.5"></textarea>
-        <button class="btn btn-green btn-sm" onclick="fbPubblicaComunicazione()" style="width:100%;margin-bottom:6px">📣 Pubblica</button>
-        <button class="btn btn-ghost btn-sm" onclick="inviaCommTelegram()" style="width:100%;margin-bottom:8px">📱 Invia Telegram a tutti</button>
-        <div id="comm-status" style="font-size:11px;color:#6B7280;min-height:16px"></div>
-        <div id="comm-preview" style="display:none;font-size:11px;color:#374151;padding:8px;background:#F8FAFC;border-radius:7px;margin-top:8px"></div>
+        <!-- DESTINATARI -->
+        <div style="font-size:10px;font-weight:700;color:#6B7280;text-transform:uppercase;letter-spacing:.4px;margin-bottom:6px;margin-top:4px">Destinatari</div>
+        <div id="comm-dest-list" style="background:#F8FAFC;border-radius:8px;padding:8px;max-height:150px;overflow-y:auto;margin-bottom:8px;font-size:11px">
+          <label style="display:flex;align-items:center;gap:7px;padding:3px 0;cursor:pointer">
+            <input type="checkbox" id="comm-dest-all" checked onchange="commDestToggleAll(this)"> <span style="font-weight:600">Tutti gli operatori</span>
+          </label>
+          <div id="comm-dest-ops" style="padding-left:4px;margin-top:4px;display:none"></div>
+        </div>
+        <div style="display:flex;gap:6px;margin-bottom:6px">
+          <button class="btn btn-green btn-sm" onclick="commPubblica()" style="flex:1">📣 Pubblica CRM</button>
+          <button class="btn btn-ghost btn-sm" onclick="commInviaTelegram()" style="flex:1">📱 Telegram</button>
+        </div>
+        <div id="comm-status" style="font-size:11px;color:#6B7280;min-height:16px;padding:4px 0"></div>
+        <div id="comm-preview" style="display:none;font-size:11px;color:#374151;padding:8px;background:#F8FAFC;border-radius:7px;margin-top:6px;border-left:3px solid #E2E8F0"></div>
       </div>
 
       <div class="sp-section">
@@ -1343,12 +1351,12 @@ function getUsers(){
 
   if(currentUser.isAdmin){
     // Admin: aggiunge tutte le chiamate passate assegnate ma non completate
+    // Admin: aggiunge tutte le chiamate passate assegnate (anche già lavorate con esito)
     Object.keys(callState).forEach(uName=>{
       const st=callState[uName]||{};
       if(!st.op)return;               // mai assegnata
       if(top60Set.has(uName.toLowerCase()))return; // già in TOP60
-      if(st.locked)return;            // già lavorata con esito
-      u.push(_makeStorico(uName));
+      u.push(_makeStorico(uName));    // include anche locked
     });
     return u;
   }
@@ -1361,12 +1369,11 @@ function getUsers(){
       u=u.filter(x=>currentUser.fathername.includes(x.fn));
     if(currentUser.supervisedOperators&&currentUser.supervisedOperators.length>0)
       u=u.filter(x=>{const op=(callState[x.u]||{}).op;return !op||currentUser.supervisedOperators.includes(op);});
-    // Aggiungi passate assegnate agli operatori monitorati
+    // Aggiungi passate assegnate agli operatori monitorati (anche chiuse)
     Object.keys(callState).forEach(uName=>{
       const st=callState[uName]||{};
       if(!st.op)return;
       if(top60Set.has(uName.toLowerCase()))return;
-      if(st.locked)return;
       const opOk=!currentUser.supervisedOperators||!currentUser.supervisedOperators.length||currentUser.supervisedOperators.includes(st.op);
       if(!opOk)return;
       u.push(_makeStorico(uName));
@@ -1374,14 +1381,13 @@ function getUsers(){
     return u;
   }
 
-  // Operatore normale: vede solo le proprie chiamate assegnate
+  // Operatore normale: vede solo le proprie chiamate assegnate (anche già lavorate)
   u=u.filter(x=>(callState[x.u]||{}).op===currentUser.name);
-  // Aggiungi chiamate passate (non più in TOP60 ma ancora da lavorare)
+  // Aggiungi chiamate passate non più in TOP60 (include tutte, anche con esito finale)
   Object.keys(callState).forEach(uName=>{
     const st=callState[uName]||{};
     if(st.op!==currentUser.name)return;
     if(top60Set.has(uName.toLowerCase()))return;
-    if(st.locked)return;
     u.push(_makeStorico(uName));
   });
   return u;
@@ -1515,7 +1521,7 @@ function renderTable(){
     const esLocked=!!(st.locked&&!currentUser.isAdmin);
     const hasId=u.id&&u.id!=='—';
     return `<tr class="${isTop?'top10':''} ${done?'row-done':''} ${isPending?'row-pending':''} ${u.dnc?'row-dnc':''}" data-u="${u.u}" onclick="handleRowClick(event,'${u.u}')">
-      <td style="text-align:center">${u._storico?'<span style="background:#F59E0B;color:#fff;font-size:9px;font-weight:700;border-radius:4px;padding:2px 5px">📅 PASS.</span>':`<span class="rank-badge ${isTop?'rank-top':'rank-rest'}">${u.r}</span>`}</td>
+      <td style="text-align:center">${u._storico?(()=>{const _se=(callState[u.u]||{}).esito;const _sc=_se==='ATTIVATO'?'#059669':_se&&_se!==''?'#6B7280':'#F59E0B';const _sl=_se?_se.substring(0,4):'PASS.';return '<span style="background:'+_sc+';color:#fff;font-size:9px;font-weight:700;border-radius:4px;padding:2px 5px">'+_sl+'</span>';})():`<span class="rank-badge ${isTop?'rank-top':'rank-rest'}">${u.r}</span>`}</td>
       <td><span class="uname-link">${u.u}</span>${u.dnc?'<span style="background:#EF4444;color:#fff;font-size:9px;font-weight:700;border-radius:4px;padding:1px 4px;margin-left:4px">⛔ DNC</span>':u.cls?`<span style="background:${'LIMIT'===u.cls?'#EF4444':'MONITORING'===u.cls?'#F59E0B':'#22C55E'};color:#fff;font-size:9px;font-weight:700;border-radius:4px;padding:1px 4px;margin-left:4px">${u.cls}</span>`:''}${(callState[u.u]||{}).no_bonus?'<span style="background:#FEE2E2;color:#B91C1C;font-size:9px;font-weight:700;border-radius:4px;padding:1px 4px;margin-left:3px">🚫🎁</span>':''}${(callState[u.u]||{}).no_call?'<span style="background:#FFFBEB;color:#92400E;font-size:9px;font-weight:700;border-radius:4px;padding:1px 4px;margin-left:3px">📵</span>':''}</td>
       <td style="font-size:11px;color:#6B7280">${u.fn||'—'}</td>
       <td><span class="fil-badge">${u.f}</span></td>
@@ -2468,12 +2474,21 @@ function renderMie(){
     const opMatch=opName?st.op===opName:!!st.op;
     if(!opMatch)return;
     if(top60Map[uName.toLowerCase()])return; // già in TOP60
-    // Crea entry minimale per utenti fuori TOP60
+    // Arricchisci con masterUsers/STORICO_SPORT per fn/f/c corretti
+    const _ul=uName.toLowerCase();
+    const _mu=masterUsers.find(x=>x.u.toLowerCase()===_ul)||{};
+    const _hs=(STORICO_SPORT&&STORICO_SPORT[_ul])||{};
     myCalls.push({
-      u:uName, fn:st.fn||'—', f:st.fil||'—', pr:'—', sc2:'Storico',
-      scr:'', vt:0, act_d:'', vt_d:0, ggr_d:0, tk:0, pm:0, vm:st.vm||0,
-      tm:0, sc:0, dnc:false, auto:false, segn:false, cls:'', stato:'',
-      _storico:true
+      u:uName, fn:_mu.fn||st.fn||'—', f:_mu.f||st.fil||'—', c:_mu.c||'', pr:'—', sc2:'Storico',
+      scr:'', vt:_hs.h_vol||0, act_d:'', vt_d:0, ggr_d:0,
+      tk:_hs.h_tickets||0, pm:_hs.h_pm||_mu.pm||0, ps:_hs.h_ps||0,
+      vm:st.vm||_mu.vm||_hs.h_ggr||0,
+      tm:0, sc:0, dnc:false, auto:false, segn:false, cls:_mu.cls||'', stato:'',
+      h_vol:_hs.h_vol||0, h_pm:_hs.h_pm||0, h_ps:_hs.h_ps||0,
+      h_tickets:_hs.h_tickets||0, h_avg_bet:_hs.h_avg_bet||0,
+      h_ggr:_hs.h_ggr||0, h_pref:_hs.h_pref||'',
+      tl:_mu.tl||'', t:_mu.t||'',
+      _storico:true, _assignedDate:st.assignedAt?st.assignedAt.slice(0,10):'senza-data'
     });
   });
 
@@ -2997,7 +3012,7 @@ function toggleSettings(){
     // Se supervisor, forza tab Telegram attivo
     if(isSup) switchSpTab('tg', document.querySelector('#settings-panel .sp-tabs button[onclick*="tg"]'));
     else { renderOpList(); }
-    if(!isSup) setTimeout(loadCommPreview, 200);
+    if(!isSup){ setTimeout(loadCommPreview, 200); commRenderDest(); }
     // populate system info
     const dd=document.getElementById('sp-data-date');
     const tu=document.getElementById('sp-tot-users');
@@ -3614,103 +3629,136 @@ function updateMobileBadges(){
   if(bdm){ bdm.textContent=miePend; bdm.style.display=miePend?'':'none'; }
 }
 
-// ─── COMUNICAZIONI ─────────────────────────────────────────────────────────
+// ─── COMUNICAZIONI ──────────────────────────────────────────────────────────
 const COMM_TIPO_STYLE = {
   urgente:      {bg:'#FEE2E2', color:'#DC2626', label:'🔴 URGENTE'},
   aggiornamento:{bg:'#FFF7D6', color:'#D97706', label:'🟡 AGGIORNAMENTO'},
   info:         {bg:'#EAFBF1', color:'#16A34A', label:'🟢 INFO'}
 };
 
-async function fbPubblicaComunicazione() {
-  const titolo = (document.getElementById('comm-titolo')||{}).value?.trim();
-  const testo  = (document.getElementById('comm-testo')||{}).value?.trim();
-  const tipo   = (document.getElementById('comm-tipo')||{}).value || 'info';
-  if(!titolo || !testo){ toast('⚠️ Inserisci titolo e testo'); return; }
-  const payload = { titolo, testo, tipo, autore: currentUser.name, timestamp: new Date().toISOString() };
-  const st = document.getElementById('comm-status');
-  if(st) st.textContent = 'Pubblicazione...';
-  try {
-    const r = await fetch(FB_URL+'/comunicazioni/latest.json', {
-      method:'PUT', headers:{'Content-Type':'application/json'}, body:JSON.stringify(payload)
+function _commSt(msg, isErr){
+  const el=document.getElementById('comm-status');
+  if(!el)return;
+  el.innerHTML='<span style="color:'+(isErr?'#DC2626':'#16A34A')+';font-weight:600">'+msg+'</span>';
+}
+
+function _commGetDestinatari(){
+  const allChk=document.getElementById('comm-dest-all');
+  if(!allChk||allChk.checked) return null; // null = tutti
+  const dest=[];
+  document.querySelectorAll('#comm-dest-ops input[type=checkbox]:checked').forEach(cb=>dest.push(cb.value));
+  return dest.length?dest:null;
+}
+
+function commDestToggleAll(chk){
+  const opsDiv=document.getElementById('comm-dest-ops');
+  if(opsDiv) opsDiv.style.display=chk.checked?'none':'block';
+  if(chk.checked){
+    document.querySelectorAll('#comm-dest-ops input').forEach(cb=>cb.checked=false);
+  }
+}
+
+function commRenderDest(){
+  const ops=(cfg&&cfg.operators)||[];
+  const el=document.getElementById('comm-dest-ops'); if(!el)return;
+  el.innerHTML=ops.map(o=>`
+    <label style="display:flex;align-items:center;gap:7px;padding:3px 0;cursor:pointer">
+      <input type="checkbox" value="${o.name}">
+      <span>${o.name}${o.tg_chat_id?' 📱':''}</span>
+    </label>`).join('');
+}
+
+async function commPubblica(){
+  const titolo=(document.getElementById('comm-titolo')||{value:''}).value.trim();
+  const testo=(document.getElementById('comm-testo')||{value:''}).value.trim();
+  const tipo=(document.getElementById('comm-tipo')||{value:'info'}).value;
+  if(!titolo||!testo){_commSt('⚠️ Inserisci titolo e testo',true);return;}
+  const destinatari=_commGetDestinatari();
+  const payload={titolo,testo,tipo,autore:currentUser.name,timestamp:new Date().toISOString(),destinatari};
+  _commSt('Pubblicazione...');
+  try{
+    const r=await fetch(FB_URL+'/comunicazioni/latest.json',{
+      method:'PUT',headers:{'Content-Type':'application/json'},body:JSON.stringify(payload)
     });
-    if(!r.ok) throw new Error(r.status);
-    if(st) st.innerHTML = '<span style="color:#16A34A;font-weight:700">✅ Pubblicata! Gli operatori la vedranno al prossimo accesso.</span>';
+    const body=await r.text();
+    if(!r.ok) throw new Error('HTTP '+r.status+': '+body.substring(0,100));
     document.getElementById('comm-titolo').value='';
     document.getElementById('comm-testo').value='';
-    loadCommPreview();
+    const dest=destinatari?destinatari.join(', '):'tutti';
+    _commSt('✅ Pubblicata per: '+dest);
     toast('✅ Comunicazione pubblicata');
-  } catch(e) {
-    if(st) st.innerHTML = '<span style="color:#DC2626">⚠️ Errore: '+e.message+'</span>';
-  }
+    setTimeout(loadCommPreview,400);
+  }catch(e){_commSt('⚠️ '+e.message,true);}
 }
 
-async function fbLoadComunicazione() {
-  try {
-    const r = await fetch(FB_URL+'/comunicazioni/latest.json');
-    if(!r.ok) return null;
-    return await r.json();
-  } catch(e) { return null; }
-}
-
-async function loadCommPreview() {
-  const el = document.getElementById('comm-preview'); if(!el) return;
-  const c = await fbLoadComunicazione();
-  if(!c){ el.style.display='none'; return; }
-  const s = COMM_TIPO_STYLE[c.tipo] || COMM_TIPO_STYLE.info;
-  const dt = c.timestamp ? new Date(c.timestamp).toLocaleString('it-IT') : '—';
-  el.style.display='block';
-  el.innerHTML = '<div style="display:inline-block;background:'+s.bg+';color:'+s.color+';border-radius:99px;padding:2px 10px;font-size:10px;font-weight:700;margin-bottom:6px">'+s.label+'</div>'
-    +'<div style="font-weight:700;color:#0F172A;font-size:12px;margin-bottom:4px">'+_esc(c.titolo)+'</div>'
-    +'<div style="color:#374151;line-height:1.5;margin-bottom:4px;font-size:11px">'+_esc(c.testo)+'</div>'
-    +'<div style="font-size:10px;color:#94A3B8">'+dt+' · '+_esc(c.autore||'admin')+'</div>';
-}
-
-function _esc(s){ return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
-
-async function checkComunicazioni() {
-  const comm = await fbLoadComunicazione();
-  if(!comm || !comm.timestamp) return;
-  const ultima = localStorage.getItem('ultima_comunicazione_letta');
-  if(ultima === comm.timestamp) return; // già letta
-  // Mostra modale
-  const s = COMM_TIPO_STYLE[comm.tipo] || COMM_TIPO_STYLE.info;
-  const dt = new Date(comm.timestamp).toLocaleString('it-IT');
-  const badge = document.getElementById('comm-tipo-badge');
-  if(badge){ badge.textContent = s.label; badge.style.background=s.bg; badge.style.color=s.color; }
-  const tel = document.getElementById('comm-modal-titolo'); if(tel) tel.textContent = comm.titolo;
-  const txel = document.getElementById('comm-modal-testo'); if(txel) txel.textContent = comm.testo;
-  const ael = document.getElementById('comm-modal-autore'); if(ael) ael.textContent = 'Pubblicato il '+dt+' da '+_esc(comm.autore||'admin');
-  // salva timestamp per chiudiCommModal
-  document.getElementById('comm-overlay')._commTs = comm.timestamp;
-  document.getElementById('comm-overlay').style.display = 'flex';
-}
-
-function chiudiCommModal() {
-  const ov = document.getElementById('comm-overlay'); if(!ov) return;
-  const ts = ov._commTs;
-  if(ts) localStorage.setItem('ultima_comunicazione_letta', ts);
-  ov.style.display = 'none';
-}
-
-async function inviaCommTelegram() {
-  const titolo = (document.getElementById('comm-titolo')||{}).value?.trim();
-  const testo  = (document.getElementById('comm-testo')||{}).value?.trim();
-  const tipo   = (document.getElementById('comm-tipo')||{}).value || 'info';
-  if(!titolo || !testo){ toast('⚠️ Scrivi titolo e testo prima di inviare'); return; }
-  const s = COMM_TIPO_STYLE[tipo] || COMM_TIPO_STYLE.info;
-  const msg = s.label+'\n\n<b>'+titolo+'</b>\n\n'+testo;
-  const ops = (cfg&&cfg.operators)||[];
-  const targets = ops.filter(o=>o.tg_chat_id);
-  if(!targets.length){ toast('⚠️ Nessun operatore ha Telegram collegato'); return; }
-  const st = document.getElementById('comm-status');
-  if(st) st.textContent = 'Invio a '+targets.length+' operatori...';
-  let sent=0, errors=0;
+async function commInviaTelegram(){
+  const titolo=(document.getElementById('comm-titolo')||{value:''}).value.trim();
+  const testo=(document.getElementById('comm-testo')||{value:''}).value.trim();
+  const tipo=(document.getElementById('comm-tipo')||{value:'info'}).value;
+  if(!titolo||!testo){_commSt('⚠️ Inserisci titolo e testo prima',true);return;}
+  const s=COMM_TIPO_STYLE[tipo]||COMM_TIPO_STYLE.info;
+  const msg=s.label+'\n\n<b>'+titolo+'</b>\n\n'+testo;
+  const destinatari=_commGetDestinatari();
+  const ops=(cfg&&cfg.operators)||[];
+  const targets=ops.filter(o=>o.tg_chat_id&&(!destinatari||destinatari.includes(o.name)));
+  if(!targets.length){_commSt('⚠️ Nessun destinatario ha Telegram collegato',true);return;}
+  _commSt('Invio a '+targets.length+' operatori...');
+  let sent=0,errors=0;
   for(const op of targets){
-    try { await sendTelegram(op.tg_chat_id, msg); sent++; }
-    catch(e){ errors++; }
+    try{await sendTelegram(op.tg_chat_id,msg);sent++;}catch(e){errors++;}
   }
-  if(st) st.innerHTML = '<span style="color:#16A34A;font-weight:700">📱 Inviato a '+sent+' operatori'+(errors?' ('+errors+' errori)':'')+'</span>';
+  _commSt('📱 Inviato a '+sent+(errors?' ('+errors+' err)':'')); 
   toast('📱 Telegram inviato a '+sent+' operatori');
+}
+
+async function fbPubblicaComunicazione(){commPubblica();}
+async function inviaCommTelegram(){commInviaTelegram();}
+
+async function fbLoadComunicazione(){
+  try{const r=await fetch(FB_URL+'/comunicazioni/latest.json');if(!r.ok)return null;return await r.json();}catch(e){return null;}
+}
+
+async function loadCommPreview(){
+  const el=document.getElementById('comm-preview');if(!el)return;
+  const c=await fbLoadComunicazione();
+  if(!c){el.style.display='none';return;}
+  const s=COMM_TIPO_STYLE[c.tipo]||COMM_TIPO_STYLE.info;
+  const dt=c.timestamp?new Date(c.timestamp).toLocaleString('it-IT'):'—';
+  const dest=c.destinatari?c.destinatari.join(', '):'tutti';
+  el.style.display='block';
+  el.style.borderLeftColor=s.color;
+  el.innerHTML='<div style="background:'+s.bg+';color:'+s.color+';display:inline-block;border-radius:99px;padding:1px 8px;font-size:9px;font-weight:700;margin-bottom:5px">'+s.label+'</div>'
+    +' <span style="font-size:9px;color:#94A3B8">→ '+dest+'</span>'
+    +'<div style="font-weight:700;color:#0F172A;margin-bottom:3px">'+_esc(c.titolo)+'</div>'
+    +'<div style="color:#374151;line-height:1.5;margin-bottom:3px">'+_esc(c.testo)+'</div>'
+    +'<div style="font-size:9px;color:#94A3B8">'+dt+'</div>';
+}
+
+function _esc(s){return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');}
+
+async function checkComunicazioni(){
+  const comm=await fbLoadComunicazione();
+  if(!comm||!comm.timestamp)return;
+  if(comm.destinatari&&!comm.destinatari.includes(currentUser.name))return;
+  const ultima=localStorage.getItem('ultima_comunicazione_letta');
+  if(ultima===comm.timestamp)return;
+  const s=COMM_TIPO_STYLE[comm.tipo]||COMM_TIPO_STYLE.info;
+  const dt=new Date(comm.timestamp).toLocaleString('it-IT');
+  const badge=document.getElementById('comm-tipo-badge');
+  if(badge){badge.textContent=s.label;badge.style.background=s.bg;badge.style.color=s.color;}
+  const tel=document.getElementById('comm-modal-titolo');if(tel)tel.textContent=comm.titolo;
+  const txel=document.getElementById('comm-modal-testo');if(txel)txel.textContent=comm.testo;
+  const ael=document.getElementById('comm-modal-autore');if(ael)ael.textContent='Pubblicato il '+dt+' da '+(comm.autore||'admin');
+  document.getElementById('comm-overlay')._commTs=comm.timestamp;
+  document.getElementById('comm-overlay').style.display='flex';
+}
+
+function chiudiCommModal(){
+  const ov=document.getElementById('comm-overlay');if(!ov)return;
+  const ts=ov._commTs;if(ts)localStorage.setItem('ultima_comunicazione_letta',ts);
+  ov.style.display='none';
+}
+
 }
 </script>
 </body>
