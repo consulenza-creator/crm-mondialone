@@ -237,8 +237,8 @@ input.note-inp:focus{border-color:#22C55E;outline:none}
   .kv{font-size:18px}
   /* Dashboard hero: stack on mobile */
   .dash-kpi-row{grid-template-columns:1fr 1fr;gap:6px}
-  .dash-kpi-card{padding:8px 10px}
-  .dash-kpi-card .dkv{font-size:18px}
+  .dash-kpi-card{padding:10px 12px}
+  .dash-kpi-card .dkv{font-size:22px}
   /* Andamento cards compact */
   .and-op-card{padding:10px 12px!important}
   /* Search bar */
@@ -250,25 +250,27 @@ input.note-inp:focus{border-color:#22C55E;outline:none}
 th[data-tip],[data-tip]{cursor:help}
 
 /* ── DASHBOARD ── */
-.dash-kpi-row{display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:8px;margin-bottom:14px}
-.dash-kpi-card{background:#fff;border-radius:10px;padding:12px 14px;box-shadow:0 1px 3px rgba(0,0,0,.08);border-top:3px solid #E5E7EB}
-.dash-kpi-card .dkv{font-size:24px;font-weight:800;line-height:1.1}
-.dash-kpi-card .dkl{font-size:10px;color:#6B7280;font-weight:700;text-transform:uppercase;letter-spacing:.4px;margin-bottom:4px}
-.dash-kpi-card .dks{font-size:10px;color:#6B7280;margin-top:3px}
-.dash-kpi-card .dkbar{height:4px;border-radius:2px;background:#E5E7EB;margin-top:6px}
-.dash-kpi-card .dkbar-fill{height:4px;border-radius:2px}
-.dash-stab-nav{display:flex;gap:0;flex-wrap:wrap;border-bottom:2px solid #E5E7EB;margin-bottom:12px}
-.dash-stab{padding:8px 14px;cursor:pointer;font-size:11px;font-weight:600;color:#6B7280;border-bottom:2px solid transparent;margin-bottom:-2px;white-space:nowrap;background:none;border-top:none;border-left:none;border-right:none}
-.dash-stab.active{color:#D97706;border-bottom-color:#D97706}
+.dash-kpi-row{display:grid;grid-template-columns:repeat(auto-fit,minmax(155px,1fr));gap:12px;margin-bottom:16px}
+.dash-kpi-card{background:#fff;border-radius:16px;padding:16px 20px;box-shadow:0 4px 16px rgba(15,23,42,0.07);border-top:3px solid #E5E7EB;transition:box-shadow .2s}
+.dash-kpi-card:hover{box-shadow:0 8px 24px rgba(15,23,42,0.11)}
+.dash-kpi-card .dkv{font-size:32px;font-weight:800;line-height:1.1;letter-spacing:-1px}
+.dash-kpi-card .dkl{font-size:10px;color:#64748B;font-weight:700;text-transform:uppercase;letter-spacing:.6px;margin-bottom:6px}
+.dash-kpi-card .dks{font-size:11px;color:#94A3B8;margin-top:5px}
+.dash-kpi-card .dkbar{height:5px;border-radius:3px;background:#E2E8F0;margin-top:8px}
+.dash-kpi-card .dkbar-fill{height:5px;border-radius:3px}
+.dash-stab-nav{display:flex;gap:2px;flex-wrap:wrap;border-bottom:2px solid #E2E8F0;margin-bottom:14px}
+.dash-stab{padding:10px 16px;cursor:pointer;font-size:12px;font-weight:600;color:#64748B;border-bottom:2px solid transparent;margin-bottom:-2px;white-space:nowrap;background:none;border-top:none;border-left:none;border-right:none;border-radius:8px 8px 0 0;transition:color .15s}
+.dash-stab:hover{color:#0F172A;background:#F8FAFC}
+.dash-stab.active{color:#00C853;border-bottom-color:#00C853;background:#EAFBF1}
 .dash-dist-row{display:flex;align-items:center;gap:8px;padding:4px 0;font-size:12px}
 .dash-dist-label{min-width:130px;max-width:130px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:#374151;font-size:11px}
 .dash-dist-bar-wrap{flex:1;background:#F3F4F6;border-radius:3px;height:10px}
-.dash-dist-bar{background:var(--bp-gold,#D97706);height:10px;border-radius:3px;transition:width .3s}
+.dash-dist-bar{background:#00C853;height:10px;border-radius:3px;transition:width .3s}
 .dash-dist-n{min-width:32px;text-align:right;font-weight:700;color:#374151;font-size:11px}
 .dash-dist-pct{min-width:36px;text-align:right;color:#6B7280;font-size:10px}
 .dash-table{width:100%;border-collapse:collapse;font-size:12px}
-.dash-table th{padding:6px 8px;text-align:left;border-bottom:2px solid #E5E7EB;color:#6B7280;font-size:10px;font-weight:700;text-transform:uppercase;white-space:nowrap}
-.dash-table td{padding:5px 8px;border-bottom:1px solid #F3F4F6}
+.dash-table th{padding:8px 12px;text-align:left;border-bottom:2px solid #E2E8F0;color:#64748B;font-size:10px;font-weight:700;text-transform:uppercase;white-space:nowrap;letter-spacing:.4px}
+.dash-table td{padding:7px 12px;border-bottom:1px solid #F1F5F9}
 .dash-table tr:hover td{background:#FAFAFA}
 .dash-badge{display:inline-block;border-radius:4px;padding:2px 6px;font-size:10px;font-weight:700}
 
@@ -684,7 +686,7 @@ Più è alta, più il giocatore usa combinazioni.">%Multi</th>
   </div>
 </div>
 
-<div id="pane-dash" style="display:none;padding:12px 16px;overflow-y:auto;max-height:calc(100vh - 130px)">
+<div id="pane-dash" style="display:none;padding:16px 20px;overflow-y:auto;max-height:calc(100vh - 130px)">
 
   <!-- KPI ROW - sempre visibile -->
   <div id="dash-kpi-row" class="dash-kpi-row"></div>
@@ -699,8 +701,8 @@ Più è alta, più il giocatore usa combinazioni.">%Multi</th>
   </div>
 
   <!-- FILIERA FILTER -->
-  <div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:12px;align-items:center">
-    <span style="font-size:10px;color:#6B7280;font-weight:600">FILIERA:</span>
+  <div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:14px;align-items:center;padding:10px 14px;background:#F8FAFC;border-radius:10px;border:1px solid #E2E8F0">
+    <span style="font-size:10px;color:#64748B;font-weight:700;letter-spacing:.5px;text-transform:uppercase">Filiera:</span>
     <button class="btn btn-xs dft-btn active" id="dft-all"        onclick="setDashFiliera('ALL')">Tutte</button>
     <button class="btn btn-xs dft-btn" id="dft-playmatika"        onclick="setDashFiliera('PassionGroup')">PassionGroup</button>
     <button class="btn btn-xs dft-btn" id="dft-microgame"         onclick="setDashFiliera('Microgame')">Microgame</button>
@@ -1459,9 +1461,9 @@ function renderTable(){
       const dayId='storico-day-'+d.replace(/[^0-9]/g,'');
       const label=_fmtDayLabel(d);
       const cnt=byDay[d].length;
-      html+='<tr style="background:#FEF3C7;cursor:pointer" onclick="(function(){var el=document.getElementById(\''+dayId+'\');var rows=el.querySelectorAll(\'tr\');rows.forEach(function(r){r.style.display=r.style.display===\'none\'?\'table-row\':\'none\';});var ico=document.getElementById(\'ico-'+dayId+'\');if(ico)ico.textContent=rows[0]&&rows[0].style.display===\'none\'?\'▶\':\'▼\';})()">'
-        +'<td colspan="15" style="padding:8px 14px;font-size:11px;font-weight:700;color:#92400E;border-top:2px solid #FCD34D">'
-        +'<span id="ico-'+dayId+'">▼</span> '+label+' <span style="background:#F59E0B;color:#fff;border-radius:10px;padding:1px 8px;font-size:10px;margin-left:6px">'+cnt+' da lavorare</span>'
+      html+='<tr style="background:#EFF6FF;cursor:pointer" onclick="(function(){var el=document.getElementById(\''+dayId+'\');var rows=el.querySelectorAll(\'tr\');rows.forEach(function(r){r.style.display=r.style.display===\'none\'?\'table-row\':\'none\';});var ico=document.getElementById(\'ico-'+dayId+'\');if(ico)ico.textContent=rows[0]&&rows[0].style.display===\'none\'?\'▶\':\'▼\';})()">'
+        +'<td colspan="15" style="padding:10px 16px;font-size:12px;font-weight:700;color:#1E40AF;border-top:2px solid #BFDBFE;border-bottom:1px solid #DBEAFE">'
+        +'<span id="ico-'+dayId+'" style="font-size:10px;margin-right:4px">▼</span> '+label+' <span style="background:#2563EB;color:#fff;border-radius:10px;padding:2px 10px;font-size:10px;font-weight:700;margin-left:8px">'+cnt+' da lavorare</span>'
         +'</td></tr>';
       html+='<tbody id="'+dayId+'">';
       html+=byDay[d].map(u=>_rowHtml(u)).join('');
@@ -2935,10 +2937,10 @@ function renderDashboard() {
       const inactPct= Math.round(inatt.length/tot*100);
       // Hero bar promo
       const heroHtml =
-        '<div style="background:linear-gradient(135deg,#064E3B 0%,#065F46 100%);border-radius:12px;padding:16px 20px;margin-bottom:12px;color:#fff">'
+        '<div style="background:linear-gradient(135deg,#0F172A 0%,#064E3B 60%,#065F46 100%);border-radius:16px;padding:20px 24px;margin-bottom:16px;color:#fff;box-shadow:0 8px 24px rgba(15,23,42,0.18)">'
         +'<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px">'
         +'<div>'
-        +'<div style="font-size:10px;font-weight:700;letter-spacing:1px;opacity:.7;text-transform:uppercase">🏆 Andamento Promo Mondialone</div>'
+        +'<div style="font-size:11px;font-weight:700;letter-spacing:1.2px;opacity:.75;text-transform:uppercase">🏆 Andamento Promo Mondialone</div>'
         +'<div style="font-size:28px;font-weight:900;line-height:1.1;margin-top:2px">'+inPromo.length+' <span style="font-size:14px;font-weight:600;opacity:.8">in promo · '+tot+' qualificati totali</span></div>'
         +'</div>'
         +'<div style="text-align:right">'
