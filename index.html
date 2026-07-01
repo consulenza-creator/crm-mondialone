@@ -119,9 +119,9 @@ input.note-inp:focus{border-color:#22C55E;outline:none}
 .scheda-textarea{width:100%;border:1px solid #E5E7EB;border-radius:8px;padding:10px 12px;font-size:12px;font-family:inherit;resize:vertical;min-height:80px;color:#374151;line-height:1.5}
 .scheda-textarea:focus{border-color:#22C55E;outline:none}
 .scheda-footer{padding:12px 20px;border-top:1px solid #E5E7EB;display:flex;gap:8px;align-items:center}
-.settings-panel{display:none;position:fixed;top:48px;right:0;width:360px;height:calc(100vh - 48px);background:#fff;box-shadow:-4px 0 24px rgba(0,0,0,.12);z-index:150;overflow:hidden;flex-direction:column}
+.settings-panel{display:none;position:fixed;top:48px;right:0;width:400px;height:calc(100vh - 48px);background:#fff;box-shadow:-4px 0 24px rgba(0,0,0,.12);z-index:150;overflow:hidden;flex-direction:column}
 .settings-panel.open{display:flex}
-.sp-tabs{display:flex;border-bottom:1px solid #E5E7EB;flex-shrink:0;background:#FAFAFA;padding:0 4px}
+.sp-tabs{display:flex;flex-wrap:wrap;border-bottom:1px solid #E5E7EB;flex-shrink:0;background:#FAFAFA;padding:0 4px}
 .sp-tab{flex:1;padding:11px 4px 10px;font-size:11px;font-weight:700;color:#9CA3AF;border:none;background:none;cursor:pointer;border-bottom:2px solid transparent;margin-bottom:-1px;transition:all .18s;letter-spacing:.3px}
 .sp-tab.active{color:#16A34A;border-bottom-color:#16A34A;background:transparent}
 .sp-tab:hover:not(.active){color:#374151;background:#F3F4F6}
@@ -1315,15 +1315,17 @@ function getUsers(){
     const _assignedDate=st.assignedAt?st.assignedAt.slice(0,10):'senza-data';
     const _ul=uName.toLowerCase();
     const _hs=(STORICO_SPORT&&STORICO_SPORT[_ul])||{};
-    return {u:uName,fn:st.fn||'—',f:st.fil||'—',pr:'—',sc2:'Passata',
+    const _mu=masterUsers.find(x=>x.u.toLowerCase()===_ul)||{};
+    return {u:uName,fn:_mu.fn||st.fn||'—',f:_mu.f||st.fil||'—',
+      c:_mu.c||'',pr:'—',sc2:'Passata',
       scr:'',vt:_hs.h_vol||0,act_d:'',vt_d:0,ggr_d:0,
-      tk:_hs.h_tickets||0,pm:_hs.h_pm||0,ps:_hs.h_ps||0,
-      vm:st.vm||_hs.h_ggr||0,
-      tm:0,sc:0,dnc:false,auto:false,segn:false,cls:'',stato:'',
+      tk:_hs.h_tickets||0,pm:_hs.h_pm||_mu.pm||0,ps:_hs.h_ps||0,
+      vm:st.vm||_mu.vm||_hs.h_ggr||0,
+      tm:0,sc:0,dnc:false,auto:false,segn:false,cls:_mu.cls||'',stato:'',
       h_vol:_hs.h_vol||0,h_pm:_hs.h_pm||0,h_ps:_hs.h_ps||0,
       h_tickets:_hs.h_tickets||0,h_avg_bet:_hs.h_avg_bet||0,
       h_ggr:_hs.h_ggr||0,h_pref:_hs.h_pref||'',
-      r:999,id:'—',tl:'',c:'',t:'',_storico:true,_assignedDate};
+      r:999,id:'—',tl:_mu.tl||'',c:_mu.c||'',t:_mu.t||'',_storico:true,_assignedDate};
   }
 
   if(currentUser.isAdmin){
@@ -1468,15 +1470,17 @@ function renderTable(){
         const _ul2=uName.toLowerCase();
         const _hs2=(STORICO_SPORT&&STORICO_SPORT[_ul2])||{};
         const _stCS=callState[uName]||{};
-        byDay[date].push({u:uName,fn:_stCS.fn||'—',f:_stCS.fil||'—',pr:'—',sc2:'Storico',
+        const _mu2=masterUsers.find(x=>x.u.toLowerCase()===_ul2)||{};
+        byDay[date].push({u:uName,fn:_mu2.fn||_stCS.fn||'—',f:_mu2.f||_stCS.fil||'—',
+          c:_mu2.c||'',pr:'—',sc2:'Storico',
           scr:'',vt:_hs2.h_vol||0,act_d:'',vt_d:0,ggr_d:0,
-          tk:_hs2.h_tickets||0,pm:_hs2.h_pm||0,ps:_hs2.h_ps||0,
-          vm:_stCS.vm||_hs2.h_ggr||0,
-          tm:0,sc:0,dnc:false,auto:false,segn:false,cls:'',stato:'',
+          tk:_hs2.h_tickets||0,pm:_hs2.h_pm||_mu2.pm||0,ps:_hs2.h_ps||0,
+          vm:_stCS.vm||_mu2.vm||_hs2.h_ggr||0,
+          tm:0,sc:0,dnc:false,auto:false,segn:false,cls:_mu2.cls||'',stato:'',
           h_vol:_hs2.h_vol||0,h_pm:_hs2.h_pm||0,h_ps:_hs2.h_ps||0,
           h_tickets:_hs2.h_tickets||0,h_avg_bet:_hs2.h_avg_bet||0,
           h_ggr:_hs2.h_ggr||0,h_pref:_hs2.h_pref||'',
-          r:999,id:'—',tl:'',c:'',t:'',_storico:true,_assignedDate:date,_neverAssigned:true});
+          r:999,id:'—',tl:_mu2.tl||'',c:_mu2.c||'',t:_mu2.t||'',_storico:true,_assignedDate:date,_neverAssigned:true});
         alreadyIn.add(uName.toLowerCase());
       });
     });
@@ -1651,6 +1655,53 @@ function buildAnalisi(u){
   if(u.segnali)warn.push('🚨 '+u.segnali);
   return{insights,warn};
 }
+
+// ─── SUGGERIMENTO CHIAMATA ──────────────────────────────────────────────────
+function _buildCallSuggestion(u) {
+  const parts = [];
+  const nt = normTrend(u.t, u.vt);
+  const hasPlayed = (u.vm||0) > 0;
+  const isQualif = QUALIFICATI.some(q=>q.u.toLowerCase()===u.u.toLowerCase());
+
+  // Apertura contestuale
+  if(u.dnc) return '⛔ Non contattare — utente DNC.';
+
+  if(u.c==='PROMO NON USATA')
+    parts.push('🎁 Ha una promo attiva non ancora usata — inizia da lì.');
+  else if(!hasPlayed && isQualif)
+    parts.push('🎯 È qualificato ma non ha ancora scommesso sul Mondialone. Obiettivo: prima giocata.');
+  else if(!hasPlayed)
+    parts.push('🎯 Non ha ancora giocato sul Mondialone. Obiettivo: attivazione.');
+  else
+    parts.push('✅ Ha già giocato (€'+Math.round(u.vm).toLocaleString('it-IT')+'). Obiettivo: aumentare coinvolgimento.');
+
+  // Profilo giocatore
+  if(u.cls==='VIP') parts.push('⭐ VIP: tono personale e attento, priorità alta.');
+  else if(u.cls==='LIMIT') parts.push('⚠️ Profilo LIMIT: breve e cauto, non spingere.');
+  else if(u.cls==='MONITORING') parts.push('👁️ In monitoraggio: verifica attività recente prima di proporre.');
+
+  // Trend
+  if(nt==='SPARITO') parts.push('📵 Non attivo da tempo — approccio di riattivazione.');
+  else if(nt==='IN CALO') parts.push('📉 Attività in calo — leva retention, non acquisition.');
+  else if(nt==='RIENTRATO') parts.push('🔵 Di ritorno: momento favorevole, aggancia subito.');
+  else if(nt==='IN CRESCITA') parts.push('📈 In crescita: momento ottimale, proponi il passo successivo.');
+
+  // Stile gioco
+  const pm = (STORICO_SPORT&&STORICO_SPORT[u.u.toLowerCase()]||{}).h_pm || u.pm || 0;
+  if(pm>=65) parts.push('🎲 Forte sui multipli ('+pm+'%): parla di quota combinata Mondialone.');
+  else if(pm<20) parts.push('🎲 Preferisce singole: proposta semplice e diretta, una gara alla volta.');
+
+  // Promo
+  if((u.vt||0)===0 && isQualif) parts.push('💡 Non ha ancora usato la promo del periodo — ricordagliela esplicitamente.');
+
+  // Cluster TAC
+  if(u.ta_cluster) {
+    const cl = u.ta_cluster.replace(/^solo_/,'').replace(/_/g,' ');
+    parts.push('📋 Cluster: '+cl+'.');
+  }
+
+  return parts.length ? parts.join('<br>') : (u.script||'Nessun suggerimento disponibile.');
+}
 function openScheda(username){
   let u=TOP60.find(x=>x.u===username);
   if(!u){
@@ -1668,8 +1719,8 @@ function openScheda(username){
   const hasId=u.id&&u.id!=='—';
   const hist=STORICO_SPORT&&STORICO_SPORT[username.toLowerCase()]||null;
   document.getElementById('scheda-body').innerHTML=`
-    <div class="scheda-section"><h4>📞 Script apertura</h4>
-      <div class="scheda-script">${u.script||'Nessuno script disponibile'}</div></div>
+    <div class="scheda-section"><h4>📞 Suggerimento chiamata</h4>
+      <div class="scheda-script">${_buildCallSuggestion(u)}</div></div>
     <div class="scheda-section"><h4>🎫 Ticket qualificante</h4>
       ${(()=>{
       const tks=(ticketsData[u.u.toLowerCase()]||ticketsData[u.u]||[]);
