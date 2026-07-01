@@ -847,10 +847,16 @@ Più è alta, più il giocatore usa combinazioni.">%Multi</th>
           </label>
           <div id="comm-dest-ops" style="padding-left:4px;margin-top:4px;display:none"></div>
         </div>
-        <div style="display:flex;gap:6px;margin-bottom:6px">
-          <button class="btn btn-green btn-sm" onclick="commPubblica()" style="flex:1">📣 Pubblica CRM</button>
-          <button class="btn btn-ghost btn-sm" onclick="commInviaTelegram()" style="flex:1">📱 Telegram</button>
+        <div style="font-size:10px;font-weight:700;color:#6B7280;text-transform:uppercase;letter-spacing:.4px;margin-bottom:6px;margin-top:4px">Canali di invio</div>
+        <div style="background:#F8FAFC;border-radius:8px;padding:8px 10px;margin-bottom:8px;display:flex;gap:16px">
+          <label style="display:flex;align-items:center;gap:7px;cursor:pointer;font-size:11px">
+            <input type="checkbox" id="comm-ch-popup" checked> <span>📣 Popup CRM</span>
+          </label>
+          <label style="display:flex;align-items:center;gap:7px;cursor:pointer;font-size:11px">
+            <input type="checkbox" id="comm-ch-tg"> <span>📱 Telegram</span>
+          </label>
         </div>
+        <button class="btn btn-green btn-sm" onclick="commInvia()" style="width:100%;margin-bottom:6px">📤 Invia comunicazione</button>
         <div id="comm-status" style="font-size:11px;color:#6B7280;min-height:16px;padding:4px 0"></div>
         <div id="comm-preview" style="display:none;font-size:11px;color:#374151;padding:8px;background:#F8FAFC;border-radius:7px;margin-top:6px;border-left:3px solid #E2E8F0"></div>
       </div>
@@ -3676,30 +3682,57 @@ function commRenderDest(){
     </label>`).join('');
 }
 
-async function commPubblica(){
+async function commInvia(){
   const titolo=(document.getElementById('comm-titolo')||{value:''}).value.trim();
   const testo=(document.getElementById('comm-testo')||{value:''}).value.trim();
   const tipo=(document.getElementById('comm-tipo')||{value:'info'}).value;
   if(!titolo||!testo){_commSt('⚠️ Inserisci titolo e testo',true);toast('⚠️ Inserisci titolo e testo');return;}
+  const chPopup=(document.getElementById('comm-ch-popup')||{checked:true}).checked;
+  const chTg=(document.getElementById('comm-ch-tg')||{checked:false}).checked;
+  if(!chPopup&&!chTg){_commSt('⚠️ Seleziona almeno un canale',true);return;}
   const destinatari=_commGetDestinatari();
-  const payload={titolo,testo,tipo,autore:(typeof currentUser!=='undefined'?currentUser.name:'admin'),timestamp:new Date().toISOString(),destinatari};
-  _commSt('⏳ Pubblicazione...');
-  toast('⏳ Pubblicazione in corso...');
+  const payload={titolo,testo,tipo,autore:(typeof currentUser!=='undefined'?currentUser.name:'admin'),timestamp:new Date().toISOString(),destinatari,canali:{popup:chPopup,telegram:chTg}};
+  _commSt('⏳ Invio in corso...');
+  const risultati=[];
   try{
-    if(typeof callState==='undefined') throw new Error('callState non disponibile');
-    callState._comm = payload;
-    if(typeof LS_STATE==='function') localStorage.setItem(LS_STATE(), JSON.stringify(callState));
-    if(typeof fbSave==='function') fbSave();
-    else throw new Error('fbSave non trovata');
-    const tEl=document.getElementById('comm-titolo');
-    const txEl=document.getElementById('comm-testo');
+    // ── Canale Popup CRM ──────────────────────────────────────────────────
+    if(chPopup){
+      if(typeof callState==='undefined') throw new Error('callState non disponibile');
+      if(typeof fbSave!=='function') throw new Error('fbSave non trovata');
+      callState._comm = payload;
+      if(typeof LS_STATE==='function') localStorage.setItem(LS_STATE(), JSON.stringify(callState));
+      fbSave();
+      risultati.push('📣 Popup CRM');
+    }
+    // ── Canale Telegram ───────────────────────────────────────────────────
+    if(chTg){
+      const s=COMM_TIPO_STYLE[tipo]||COMM_TIPO_STYLE.info;
+      const msg=s.label+'
+
+<b>'+titolo+'</b>
+
+'+testo;
+      const ops=(typeof cfg!=='undefined'&&cfg&&cfg.operators)||[];
+      const targets=ops.filter(o=>o.tg_chat_id&&(!destinatari||destinatari.includes(o.name)));
+      if(!targets.length){_commSt('⚠️ Nessun operatore ha Telegram configurato',true);return;}
+      let sent=0,errors=0;
+      for(const op of targets){
+        try{await sendTelegram(op.tg_chat_id,msg);sent++;}
+        catch(e){errors++;console.error('TG error '+op.name+':',e);}
+      }
+      risultati.push('📱 Telegram →'+sent+(errors?' ('+errors+' err)':''));
+    }
+    // ── Reset form ────────────────────────────────────────────────────────
+    const tEl=document.getElementById('comm-titolo');const txEl=document.getElementById('comm-testo');
     if(tEl)tEl.value='';if(txEl)txEl.value='';
-    const dest=destinatari?destinatari.join(', '):'tutti';
-    _commSt('✅ Pubblicata per: '+dest);
-    toast('✅ Comunicazione pubblicata a '+dest);
+    const summary=risultati.join(' + ');
+    _commSt('✅ Inviato: '+summary);
+    toast('✅ '+summary);
     setTimeout(loadCommPreview,400);
-  }catch(e){_commSt('⚠️ Errore: '+e.message,true);toast('⚠️ '+e.message);}
+  }catch(e){_commSt('⚠️ '+e.message,true);toast('⚠️ '+e.message);}
 }
+
+async function commPubblica(){commInvia();}
 
 async function commInviaTelegram(){
   const titolo=(document.getElementById('comm-titolo')||{value:''}).value.trim();
