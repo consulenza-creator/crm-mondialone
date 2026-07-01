@@ -1313,9 +1313,16 @@ function getUsers(){
   function _makeStorico(uName){
     const st=callState[uName]||{};
     const _assignedDate=st.assignedAt?st.assignedAt.slice(0,10):'senza-data';
+    const _ul=uName.toLowerCase();
+    const _hs=(STORICO_SPORT&&STORICO_SPORT[_ul])||{};
     return {u:uName,fn:st.fn||'—',f:st.fil||'—',pr:'—',sc2:'Passata',
-      scr:'',vt:0,act_d:'',vt_d:0,ggr_d:0,tk:0,pm:0,vm:st.vm||0,
+      scr:'',vt:_hs.h_vol||0,act_d:'',vt_d:0,ggr_d:0,
+      tk:_hs.h_tickets||0,pm:_hs.h_pm||0,ps:_hs.h_ps||0,
+      vm:st.vm||_hs.h_ggr||0,
       tm:0,sc:0,dnc:false,auto:false,segn:false,cls:'',stato:'',
+      h_vol:_hs.h_vol||0,h_pm:_hs.h_pm||0,h_ps:_hs.h_ps||0,
+      h_tickets:_hs.h_tickets||0,h_avg_bet:_hs.h_avg_bet||0,
+      h_ggr:_hs.h_ggr||0,h_pref:_hs.h_pref||'',
       r:999,id:'—',tl:'',c:'',t:'',_storico:true,_assignedDate};
   }
 
@@ -1458,9 +1465,17 @@ function renderTable(){
         if(top60SetR.has(uName.toLowerCase()))return;
         if(alreadyIn.has(uName.toLowerCase()))return;
         if(!byDay[date])byDay[date]=[];
-        byDay[date].push({u:uName,fn:'—',f:'—',pr:'—',sc2:'Storico',
-          scr:'',vt:0,act_d:'',vt_d:0,ggr_d:0,tk:0,pm:0,vm:0,
+        const _ul2=uName.toLowerCase();
+        const _hs2=(STORICO_SPORT&&STORICO_SPORT[_ul2])||{};
+        const _stCS=callState[uName]||{};
+        byDay[date].push({u:uName,fn:_stCS.fn||'—',f:_stCS.fil||'—',pr:'—',sc2:'Storico',
+          scr:'',vt:_hs2.h_vol||0,act_d:'',vt_d:0,ggr_d:0,
+          tk:_hs2.h_tickets||0,pm:_hs2.h_pm||0,ps:_hs2.h_ps||0,
+          vm:_stCS.vm||_hs2.h_ggr||0,
           tm:0,sc:0,dnc:false,auto:false,segn:false,cls:'',stato:'',
+          h_vol:_hs2.h_vol||0,h_pm:_hs2.h_pm||0,h_ps:_hs2.h_ps||0,
+          h_tickets:_hs2.h_tickets||0,h_avg_bet:_hs2.h_avg_bet||0,
+          h_ggr:_hs2.h_ggr||0,h_pref:_hs2.h_pref||'',
           r:999,id:'—',tl:'',c:'',t:'',_storico:true,_assignedDate:date,_neverAssigned:true});
         alreadyIn.add(uName.toLowerCase());
       });
