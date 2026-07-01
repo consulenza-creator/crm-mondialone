@@ -121,7 +121,7 @@ input.note-inp:focus{border-color:#22C55E;outline:none}
 .scheda-footer{padding:12px 20px;border-top:1px solid #E5E7EB;display:flex;gap:8px;align-items:center}
 .settings-panel{display:none;position:fixed;top:48px;right:0;width:400px;height:calc(100vh - 48px);background:#fff;box-shadow:-4px 0 24px rgba(0,0,0,.12);z-index:150;overflow:hidden;flex-direction:column}
 .settings-panel.open{display:flex}
-.sp-tabs{display:flex;flex-wrap:wrap;border-bottom:1px solid #E5E7EB;flex-shrink:0;background:#FAFAFA;padding:0 4px}
+.sp-tabs{display:flex;border-bottom:1px solid #E5E7EB;flex-shrink:0;background:#FAFAFA;padding:0 4px}
 .sp-tab{flex:1;padding:11px 4px 10px;font-size:11px;font-weight:700;color:#9CA3AF;border:none;background:none;cursor:pointer;border-bottom:2px solid transparent;margin-bottom:-1px;transition:all .18s;letter-spacing:.3px}
 .sp-tab.active{color:#16A34A;border-bottom-color:#16A34A;background:transparent}
 .sp-tab:hover:not(.active){color:#374151;background:#F3F4F6}
@@ -772,7 +772,6 @@ Più è alta, più il giocatore usa combinazioni.">%Multi</th>
     <button class="sp-tab active" onclick="switchSpTab('op',this)">👥 Operatori</button>
     <button class="sp-tab" onclick="switchSpTab('tg',this)">📱 Telegram</button>
     <button class="sp-tab" onclick="switchSpTab('sys',this)">🔧 Sistema</button>
-    <button class="sp-tab" onclick="switchSpTab('comm',this)">📢 Comunicazioni</button>
   </div>
   <div class="sp-body">
 
@@ -831,6 +830,23 @@ Più è alta, più il giocatore usa combinazioni.">%Multi</th>
 
     <!-- TAB SISTEMA -->
     <div class="sp-pane" id="sp-pane-sys">
+      <div class="sp-section" id="sp-comm-section">
+        <h4>📢 Comunicazioni operatori</h4>
+        <div style="margin-bottom:8px">
+          <select id="comm-tipo" class="sp-select" style="margin-bottom:0">
+            <option value="urgente">🔴 Urgente</option>
+            <option value="aggiornamento" selected>🟡 Aggiornamento</option>
+            <option value="info">🟢 Info</option>
+          </select>
+        </div>
+        <input id="comm-titolo" class="sp-input" placeholder="Titolo comunicazione">
+        <textarea id="comm-testo" class="sp-input" placeholder="Testo del messaggio..." rows="3" style="resize:vertical;font-family:inherit;font-size:12px;line-height:1.5"></textarea>
+        <button class="btn btn-green btn-sm" onclick="fbPubblicaComunicazione()" style="width:100%;margin-bottom:6px">📣 Pubblica</button>
+        <button class="btn btn-ghost btn-sm" onclick="inviaCommTelegram()" style="width:100%;margin-bottom:8px">📱 Invia Telegram a tutti</button>
+        <div id="comm-status" style="font-size:11px;color:#6B7280;min-height:16px"></div>
+        <div id="comm-preview" style="display:none;font-size:11px;color:#374151;padding:8px;background:#F8FAFC;border-radius:7px;margin-top:8px"></div>
+      </div>
+
       <div class="sp-section">
         <h4>🔐 Admin PIN</h4>
         <div style="display:flex;gap:6px">
@@ -863,36 +879,6 @@ Più è alta, più il giocatore usa combinazioni.">%Multi</th>
       </div>
     </div>
 
-    <!-- TAB COMUNICAZIONI -->
-    <div class="sp-pane" id="sp-pane-comm">
-      <div class="sp-section">
-        <h4>📢 Nuova Comunicazione</h4>
-        <div style="margin-bottom:8px">
-          <label style="font-size:10px;font-weight:700;color:#6B7280;text-transform:uppercase;letter-spacing:.4px;display:block;margin-bottom:4px">Tipo</label>
-          <select id="comm-tipo" class="sp-select" style="margin-bottom:0">
-            <option value="urgente">🔴 Urgente</option>
-            <option value="aggiornamento" selected>🟡 Aggiornamento</option>
-            <option value="info">🟢 Info</option>
-          </select>
-        </div>
-        <div style="margin-bottom:8px">
-          <label style="font-size:10px;font-weight:700;color:#6B7280;text-transform:uppercase;letter-spacing:.4px;display:block;margin-bottom:4px">Titolo</label>
-          <input id="comm-titolo" class="sp-input" placeholder="Es. Aggiornamento regole promo" style="margin-bottom:0">
-        </div>
-        <div style="margin-bottom:12px">
-          <label style="font-size:10px;font-weight:700;color:#6B7280;text-transform:uppercase;letter-spacing:.4px;display:block;margin-bottom:4px">Testo</label>
-          <textarea id="comm-testo" class="sp-input" placeholder="Scrivi il messaggio per gli operatori..." rows="4" style="resize:vertical;font-family:inherit;font-size:12px;line-height:1.5;margin-bottom:0"></textarea>
-        </div>
-        <button class="btn btn-green btn-sm" onclick="fbPubblicaComunicazione()" style="width:100%;margin-bottom:8px">📣 Pubblica comunicazione</button>
-        <button class="btn btn-ghost btn-sm" onclick="inviaCommTelegram()" style="width:100%">📱 Invia via Telegram a tutti</button>
-        <div id="comm-status" style="font-size:11px;margin-top:8px;color:#6B7280;min-height:20px"></div>
-      </div>
-      <div class="sp-section">
-        <h4>📋 Ultima comunicazione pubblicata</h4>
-        <div id="comm-preview" style="font-size:11px;color:#94A3B8;padding:10px;background:#F8FAFC;border-radius:8px;min-height:60px">—</div>
-        <button class="btn btn-ghost btn-sm" onclick="loadCommPreview()" style="width:100%;margin-top:8px">🔄 Ricarica</button>
-      </div>
-    </div>
 
   </div>
 </div>
@@ -3010,7 +2996,8 @@ function toggleSettings(){
     if(titleEl) titleEl.textContent = isSup ? 'Pannello Supervisor' : 'Console Admin';
     // Se supervisor, forza tab Telegram attivo
     if(isSup) switchSpTab('tg', document.querySelector('#settings-panel .sp-tabs button[onclick*="tg"]'));
-    else renderOpList();
+    else { renderOpList(); }
+    if(!isSup) setTimeout(loadCommPreview, 200);
     // populate system info
     const dd=document.getElementById('sp-data-date');
     const tu=document.getElementById('sp-tot-users');
@@ -3019,7 +3006,6 @@ function toggleSettings(){
   }
 }
 function switchSpTab(name,btn){
-  if(name==='comm') setTimeout(loadCommPreview, 100);
   document.querySelectorAll('.sp-tab').forEach(t=>t.classList.remove('active'));
   document.querySelectorAll('.sp-pane').forEach(p=>p.classList.remove('active'));
   btn.classList.add('active');
@@ -3668,14 +3654,14 @@ async function fbLoadComunicazione() {
 
 async function loadCommPreview() {
   const el = document.getElementById('comm-preview'); if(!el) return;
-  el.textContent = 'Caricamento...';
   const c = await fbLoadComunicazione();
-  if(!c){ el.innerHTML = '<span style="color:#94A3B8">Nessuna comunicazione pubblicata</span>'; return; }
+  if(!c){ el.style.display='none'; return; }
   const s = COMM_TIPO_STYLE[c.tipo] || COMM_TIPO_STYLE.info;
   const dt = c.timestamp ? new Date(c.timestamp).toLocaleString('it-IT') : '—';
-  el.innerHTML = '<div style="display:inline-block;background:'+s.bg+';color:'+s.color+';border-radius:99px;padding:2px 10px;font-size:10px;font-weight:700;margin-bottom:8px">'+s.label+'</div>'
-    +'<div style="font-weight:700;color:#0F172A;margin-bottom:6px">'+_esc(c.titolo)+'</div>'
-    +'<div style="color:#374151;line-height:1.5;margin-bottom:8px">'+_esc(c.testo)+'</div>'
+  el.style.display='block';
+  el.innerHTML = '<div style="display:inline-block;background:'+s.bg+';color:'+s.color+';border-radius:99px;padding:2px 10px;font-size:10px;font-weight:700;margin-bottom:6px">'+s.label+'</div>'
+    +'<div style="font-weight:700;color:#0F172A;font-size:12px;margin-bottom:4px">'+_esc(c.titolo)+'</div>'
+    +'<div style="color:#374151;line-height:1.5;margin-bottom:4px;font-size:11px">'+_esc(c.testo)+'</div>'
     +'<div style="font-size:10px;color:#94A3B8">'+dt+' · '+_esc(c.autore||'admin')+'</div>';
 }
 
