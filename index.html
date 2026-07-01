@@ -3707,11 +3707,7 @@ async function commInvia(){
     // ── Canale Telegram ───────────────────────────────────────────────────
     if(chTg){
       const s=COMM_TIPO_STYLE[tipo]||COMM_TIPO_STYLE.info;
-      const msg=s.label+'
-
-<b>'+titolo+'</b>
-
-'+testo;
+      const msg=s.label+'\n\n<b>'+titolo+'</b>\n\n'+testo;
       const ops=(typeof cfg!=='undefined'&&cfg&&cfg.operators)||[];
       const targets=ops.filter(o=>o.tg_chat_id&&(!destinatari||destinatari.includes(o.name)));
       if(!targets.length){_commSt('⚠️ Nessun operatore ha Telegram configurato',true);return;}
@@ -3785,6 +3781,30 @@ async function loadCommPreview(){
 }
 
 function _esc(s){return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');}
+
+// Polling comunicazioni per operatori (ogni 20s) — chiamata anche da EventSource
+function _startCommPolling(){
+  if(typeof currentUser==='undefined'||!currentUser)return;
+  if(currentUser.isAdmin||currentUser.isSupervisor)return;
+  setInterval(checkComunicazioni, 20000);
+}
+// Hook nell'EventSource esistente: quando callState cambia, controlla _comm
+(function(){
+  const _origSync = typeof startFbSync === 'function' ? startFbSync : null;
+  if(_origSync){
+    window._commSyncHooked = true;
+  }
+  // Intercetta aggiornamenti Firebase via patch callState
+  const _origApply = typeof applyFilters==='function'?applyFilters:null;
+  if(_origApply){
+    window.applyFilters = function(){
+      _origApply();
+      if(typeof currentUser!=='undefined'&&currentUser&&!currentUser.isAdmin&&!currentUser.isSupervisor){
+        checkComunicazioni();
+      }
+    };
+  }
+})();
 
 async function checkComunicazioni(){
   const comm=await fbLoadComunicazione();
