@@ -1721,22 +1721,30 @@ function _buildCallSuggestion(u) {
     parts.push('📋 Cluster: '+cl+'.');
   }
 
+  // Sport preferito
+  const pref = (STORICO_SPORT&&STORICO_SPORT[u.u.toLowerCase()]||{}).h_pref;
+  if(pref) parts.push('⚽ Scommette principalmente su: <b>'+pref+'</b>.');
+
   return parts.length ? parts.join('<br>') : (u.script||'Nessun suggerimento disponibile.');
 }
 function openScheda(username){
   let u=TOP60.find(x=>x.u===username);
   if(!u){
-    // Utente storico non più in TOP60 — costruisci entry dal callState
+    // Utente storico non più in TOP60 — arricchisci da masterUsers + callState
     const st=callState[username]||{};
     const ss2=schedeState[username]||{};
-    u={u:username,fn:st.fn||ss2.fn||'—',f:st.fil||ss2.fil||'—',pr:'—',sc2:'Storico',
-       scr:'',vt:0,h_vol:0,act_d:'',vt_d:0,ggr_d:0,tk:0,pm:0,vm:st.vm||0,
-       tm:0,sc:0,dnc:false,auto:false,segn:false,cls:'',stato:'',c:'Storico',t:'',id:'',tl:''};
+    const _mu3=masterUsers.find(x=>x.u.toLowerCase()===username.toLowerCase())||{};
+    u={u:username,fn:_mu3.fn||st.fn||ss2.fn||'—',f:_mu3.f||st.fil||ss2.fil||'—',
+       c:_mu3.c||'Storico',pr:'—',sc2:'Storico',
+       scr:'',vt:0,h_vol:0,act_d:'',vt_d:0,ggr_d:0,tk:0,pm:_mu3.pm||0,vm:st.vm||_mu3.vm||0,
+       tm:0,sc:0,dnc:false,auto:false,segn:false,cls:_mu3.cls||'',stato:'',t:_mu3.t||'',id:'',tl:_mu3.tl||''};
   }
   currentScheda=username;
   const sc=schedeState[username]||{};
   document.getElementById('sch-title').textContent=u.u;
-  document.getElementById('sch-subtitle').textContent=u.f+' · '+u.c+' · Score '+u.sc;
+  const _hpref=(STORICO_SPORT&&STORICO_SPORT[username.toLowerCase()]||{}).h_pref||'';
+  const _prefBadge=_hpref?` <span style="background:#EDE9FE;color:#7C3AED;font-size:10px;font-weight:700;border-radius:99px;padding:1px 8px">⚽ ${_hpref}</span>`:'';
+  document.getElementById('sch-subtitle').innerHTML=u.f+' · '+u.c+' · Score '+u.sc+_prefBadge;
   const hasId=u.id&&u.id!=='—';
   const hist=STORICO_SPORT&&STORICO_SPORT[username.toLowerCase()]||null;
   document.getElementById('scheda-body').innerHTML=`
@@ -3672,23 +3680,25 @@ async function commPubblica(){
   const titolo=(document.getElementById('comm-titolo')||{value:''}).value.trim();
   const testo=(document.getElementById('comm-testo')||{value:''}).value.trim();
   const tipo=(document.getElementById('comm-tipo')||{value:'info'}).value;
-  if(!titolo||!testo){_commSt('⚠️ Inserisci titolo e testo',true);return;}
+  if(!titolo||!testo){_commSt('⚠️ Inserisci titolo e testo',true);toast('⚠️ Inserisci titolo e testo');return;}
   const destinatari=_commGetDestinatari();
-  const payload={titolo,testo,tipo,autore:currentUser.name,timestamp:new Date().toISOString(),destinatari};
-  _commSt('Pubblicazione...');
+  const payload={titolo,testo,tipo,autore:(typeof currentUser!=='undefined'?currentUser.name:'admin'),timestamp:new Date().toISOString(),destinatari};
+  _commSt('⏳ Pubblicazione...');
+  toast('⏳ Pubblicazione in corso...');
   try{
-    // Salva dentro callState._comm — usa lo stesso path /state/v1 che funziona sempre
+    if(typeof callState==='undefined') throw new Error('callState non disponibile');
     callState._comm = payload;
-    localStorage.setItem(LS_STATE(), JSON.stringify(callState));
-    fbSave(); // PUT a /state/v1.json — path garantito
+    if(typeof LS_STATE==='function') localStorage.setItem(LS_STATE(), JSON.stringify(callState));
+    if(typeof fbSave==='function') fbSave();
+    else throw new Error('fbSave non trovata');
     const tEl=document.getElementById('comm-titolo');
     const txEl=document.getElementById('comm-testo');
     if(tEl)tEl.value='';if(txEl)txEl.value='';
     const dest=destinatari?destinatari.join(', '):'tutti';
     _commSt('✅ Pubblicata per: '+dest);
-    toast('✅ Comunicazione pubblicata');
+    toast('✅ Comunicazione pubblicata a '+dest);
     setTimeout(loadCommPreview,400);
-  }catch(e){_commSt('⚠️ '+e.message,true);}
+  }catch(e){_commSt('⚠️ Errore: '+e.message,true);toast('⚠️ '+e.message);}
 }
 
 async function commInviaTelegram(){
