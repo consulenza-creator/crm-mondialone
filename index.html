@@ -1316,11 +1316,10 @@ function updateFnDimming(){
 // ── TABS ──
 function switchTab(t){
   activeTab=t;
-  ['oggi','monitor','tutti','conv','mie','qualif','dash'].forEach(x=>{
-    document.getElementById('tab-'+x).classList.toggle('active',x===t);
-    document.getElementById('pane-'+x).style.display=x===t?'block':'none';
+  ['oggi','tutti','conv','mie','qualif','dash'].forEach(x=>{
+    const tb=document.getElementById('tab-'+x); if(tb) tb.classList.toggle('active',x===t);
+    const pn=document.getElementById('pane-'+x); if(pn) pn.style.display=x===t?'block':'none';
   });
-  if(t==='monitor')renderMonitor();
   if(t==='dash')renderDashboard();
   if(t==='tutti'){
     if(masterReady){renderTutti();}
