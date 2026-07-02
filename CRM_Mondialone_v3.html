@@ -865,6 +865,14 @@ Più è alta, più il giocatore usa combinazioni.">%Multi</th>
         </div>
       </div>
 
+      <!-- Assegnazione TL -->
+      <div style="background:#F5F3FF;border-radius:9px;padding:12px;margin-bottom:14px">
+        <div style="font-size:11px;font-weight:700;color:#7C3AED;margin-bottom:6px">👥 ASSEGNA A TEAM LEADER (opzionale)</div>
+        <select id="lf-assign-tl" style="width:100%;padding:7px 10px;border:1px solid #DDD6FE;border-radius:7px;font-size:13px">
+          <option value="">— Nessuno (lista globale) —</option>
+        </select>
+        <div style="font-size:10px;color:#9CA3AF;margin-top:4px">Se selezioni un TL, solo lui vedrà questa lista e potrà distribuirla ai suoi operatori</div>
+      </div>
       <!-- Anteprima + Azioni -->
       <div style="display:flex;align-items:center;gap:12px;margin-bottom:14px">
         <button onclick="anteprimaLista()" style="background:#F3F4F6;border:1px solid #E5E7EB;border-radius:7px;padding:7px 14px;font-size:13px;cursor:pointer">👁 Anteprima</button>
@@ -979,10 +987,15 @@ Più è alta, più il giocatore usa combinazioni.">%Multi</th>
           <input id="new-op-name" class="sp-input" placeholder="Nome operatore" maxlength="30" style="margin-bottom:0">
           <input id="new-op-pin" type="password" class="sp-input" placeholder="PIN" maxlength="8" style="margin-bottom:0">
         </div>
-        <select id="new-op-role" class="sp-select">
+        <select id="new-op-role" class="sp-select" onchange="toggleNewOpSupervised(this.value)">
           <option value="operator">👤 Operatore</option>
+          <option value="team_leader">👥 Team Leader</option>
           <option value="supervisor">🔑 Supervisor</option>
         </select>
+        <div id="new-op-supervised-wrap" style="display:none;margin-bottom:10px">
+          <div style="font-size:10px;color:#7C3AED;font-weight:700;margin-bottom:5px">OPERATORI SUPERVISIONATI</div>
+          <div id="new-op-sup-boxes" class="chk-grid"></div>
+        </div>
         <div style="font-size:10px;color:#6B7280;font-weight:700;margin-bottom:5px">FILIERE</div>
         <div id="new-op-fil-boxes" class="chk-grid" style="margin-bottom:10px">
           <label class="chk-item"><input type="checkbox" value="PASSIONGROUP"><span>PASSIONGROUP</span></label>
@@ -3352,15 +3365,29 @@ function addOperator(){
   const filiere=Array.from(document.querySelectorAll('#new-op-fil-boxes input:checked')).map(o=>o.value);
   const fathername=Array.from(document.querySelectorAll('#new-op-fn-boxes input:checked')).map(o=>o.value);
   const role=document.getElementById('new-op-role')?document.getElementById('new-op-role').value:'operator';
-  const op={id:Date.now(),name,filiere,fathername,active:true,role};
+  const supervisedOperators=role==='team_leader'?Array.from(document.querySelectorAll('#new-op-sup-boxes input:checked')).map(c=>c.value):[];
+  const op={id:Date.now(),name,filiere,fathername,active:true,role,supervisedOperators};
   if(pin) op.pin=pin;
   cfg.operators.push(op);
   saveCfg();renderOpList();fillOpSelects();
   document.getElementById('new-op-name').value='';
   document.getElementById('new-op-pin').value='';
-  if(document.getElementById('new-op-role'))document.getElementById('new-op-role').value='operator';
+  if(document.getElementById('new-op-role')){document.getElementById('new-op-role').value='operator';toggleNewOpSupervised('operator');}
   document.querySelectorAll('#new-op-fil-boxes input,#new-op-fn-boxes input').forEach(cb=>{cb.checked=false;cb.closest('.chk-item').classList.remove('checked','dimmed');});
   toast('✅ Operatore aggiunto');renderLoginScreen();
+}
+function toggleNewOpSupervised(role) {
+  const wrap = document.getElementById('new-op-supervised-wrap');
+  if (!wrap) return;
+  wrap.style.display = role === 'team_leader' ? '' : 'none';
+  if (role === 'team_leader') {
+    const boxes = document.getElementById('new-op-sup-boxes');
+    if (!boxes) return;
+    const ops = (cfg.operators||[]).filter(o=>o.active!==false&&o.role!=='supervisor'&&o.role!=='team_leader');
+    boxes.innerHTML = ops.length ? ops.map(o =>
+      '<label class="chk-item"><input type="checkbox" value="'+o.name+'"><span>'+o.name+'</span></label>'
+    ).join('') : '<span style="font-size:12px;color:#9CA3AF">Nessun operatore disponibile</span>';
+  }
 }
 function removeOp(i){cfg.operators.splice(i,1);saveCfg();renderOpList();fillOpSelects();toast('Rimosso');renderLoginScreen();}
 function changePin(){const p=document.getElementById('new-pin').value.trim();if(p.length<4){toast('Min 4 caratteri');return;}cfg.adminPin=p;saveCfg();document.getElementById('new-pin').value='';toast('✅ PIN aggiornato');}
@@ -4144,6 +4171,7 @@ async function generaLista() {
   const tutti = runPromoEngine(cfg);
   if (!tutti.length) { toast('⚠️ Nessun utente eligible con questi criteri'); return; }
   const id = 'lista_' + Date.now();
+  const assignedTL = (document.getElementById('lf-assign-tl')||{}).value || '';
   const promo = {
     id, nome, obiettivo:obj, config:cfg,
     listaCompleta: tutti.map(u=>u.u),
@@ -4152,6 +4180,7 @@ async function generaLista() {
     createdAt: new Date().toISOString(),
     createdBy: (typeof currentUser !== 'undefined' ? currentUser.name : 'admin'),
     attiva: true, batchCorrente: 0,
+    assignedTL: assignedTL,
   };
   toast('⏳ Salvataggio in corso...');
   try {
@@ -4190,7 +4219,9 @@ function _makeCardAdmin(p, isArchived) {
         '<div style="font-weight:700;font-size:14px;color:'+(isArchived?'#9CA3AF':'#111')+'">'+(_OBJ_ICON[p.obiettivo]||'📋')+' '+p.nome+'</div>' +
         '<div style="font-size:11px;color:#9CA3AF;margin-top:2px">'+
           tot.toLocaleString('it-IT')+' utenti · da '+p.createdBy+
-          ' · '+(p.createdAt||'').slice(0,10)+'</div>' +
+          ' · '+(p.createdAt||'').slice(0,10)+
+          (p.assignedTL ? ' · <span style="color:#7C3AED;font-weight:600">👥 '+p.assignedTL+'</span>' : '')+
+          '</div>' +
       '</div>' +
       (isArchived ? '' : '<button onclick="archiviaLista(\''+p.id+'\')" title="Archivia lista" style="font-size:11px;color:#9CA3AF;border:none;background:none;cursor:pointer;padding:2px 6px">✕</button>') +
     '</div>' +
@@ -4220,8 +4251,14 @@ function renderListeUI() {
   if (_ucards) _ucards.style.display = isAdm ? 'none' : '';
 
   const tuttiPromos = Object.values(_promoList).filter(p=>p);
-  const attive = tuttiPromos.filter(p=>p.attiva);
-  const archiviate = tuttiPromos.filter(p=>!p.attiva);
+  // TL vede solo le liste assegnate a lui; admin vede tutto
+  const _isTL = typeof currentUser!=='undefined'&&currentUser&&currentUser.isTeamLeader&&!currentUser.isAdmin;
+  const _tlName = _isTL ? currentUser.name : null;
+  const tuttiVisible = _isTL
+    ? tuttiPromos.filter(p => p.assignedTL === _tlName)
+    : tuttiPromos;
+  const attive = tuttiVisible.filter(p=>p.attiva);
+  const archiviate = tuttiVisible.filter(p=>!p.attiva);
 
   if (isAdm) {
     const oggiC = document.getElementById('liste-cards-oggi');
@@ -4519,6 +4556,13 @@ function caricaAltri60() {
 }
 
 function openNuovaLista() {
+  // Popola dropdown Team Leader
+  const tlSel = document.getElementById('lf-assign-tl');
+  if (tlSel) {
+    const tls = (cfg.operators||[]).filter(o=>o.active!==false&&o.role==='team_leader');
+    tlSel.innerHTML = '<option value="">— Nessuno (lista globale) —</option>' +
+      tls.map(o=>'<option value="'+o.name+'">👥 '+o.name+'</option>').join('');
+  }
   document.getElementById('lista-form-overlay').style.display = 'flex';
 }
 
@@ -4619,9 +4663,14 @@ async function fbSaveOpLogin() {
 function _fillAssignOpSelect() {
   const sel = document.getElementById('lista-assign-op');
   if (!sel) return;
-  const ops = (typeof cfg !== 'undefined' && cfg && cfg.operators)
-    ? cfg.operators.filter(o => o.active !== false && o.role !== 'supervisor' && o.role !== 'admin')
+  const isTL = typeof currentUser!=='undefined'&&currentUser&&currentUser.isTeamLeader&&!currentUser.isAdmin;
+  let ops = (typeof cfg !== 'undefined' && cfg && cfg.operators)
+    ? cfg.operators.filter(o => o.active !== false && o.role !== 'supervisor' && o.role !== 'admin' && o.role !== 'team_leader')
     : [];
+  // TL vede solo i suoi operatori
+  if (isTL && currentUser.supervisedOperators && currentUser.supervisedOperators.length) {
+    ops = ops.filter(o => currentUser.supervisedOperators.includes(o.name));
+  }
   sel.innerHTML = ops.length
     ? ops.map(o => '<option value="'+o.name+'">'+o.name+'</option>').join('')
     : '<option value="">— nessun operatore —</option>';
