@@ -750,7 +750,7 @@ Più è alta, più il giocatore usa combinazioni.">%Multi</th>
         <div style="font-size:12px;font-weight:700;color:#374151;margin-bottom:10px">📋 CRITERI DI QUALIFICAZIONE</div>
         <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:10px">
           <div>
-            <div style="font-size:11px;color:#6B7280;margin-bottom:3px">Stake 90gg min (€)</div>
+            <div style="font-size:11px;color:#6B7280;margin-bottom:3px">Stake 90gg min (€) <span style="color:#9CA3AF;font-size:10px">[o vol.storico]</span></div>
             <input id="lf-stake90" type="number" value="50" min="0" style="width:100%;padding:6px 8px;border:1px solid #E5E7EB;border-radius:5px;font-size:13px">
           </div>
           <div>
@@ -4056,9 +4056,11 @@ function runPromoEngine(config) {
     const cu = (u.c || '').toUpperCase();
     if (escludiCls.some(cl => cu.includes(cl))) continue;
     // Filtri quantitativi
-    const s90 = u.s90 || 0;
+    const s90raw = u.s90 || 0;
     const hs  = (typeof STORICO_SPORT !== 'undefined' && STORICO_SPORT) ? (STORICO_SPORT[u.u.toLowerCase()]||{}) : {};
     const hvol = hs.h_vol || 0;
+    // Se s90 non disponibile (aggiorna_crm non ancora rieseguito con SQLite), fallback su h_vol
+    const s90 = s90raw > 0 ? s90raw : hvol;
     if (s90 < stake90Min) continue;
     if (hvol < volStorMin) continue;
     if ((u.tgg||0) < tenureMin) continue;
