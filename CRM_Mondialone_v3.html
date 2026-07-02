@@ -689,15 +689,23 @@ Più è alta, più il giocatore usa combinazioni.">%Multi</th>
 </div>
 
 
-<div id="pane-liste" style="display:none;padding:12px 16px">
+<div id="pane-liste" style="display:none;padding:12px 16px;overflow-y:auto;max-height:calc(100vh - 130px)">
 
   <!-- ─── ADMIN: gestione liste ─── -->
   <div id="liste-mgmt" style="display:none">
-    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:14px">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px">
       <div style="font-size:15px;font-weight:700;color:#111">🎯 Gestione Liste Contatti</div>
       <button onclick="openNuovaLista()" style="background:#2563EB;color:#fff;border:none;border-radius:8px;padding:7px 14px;font-size:13px;cursor:pointer;font-weight:600">+ Nuova Lista</button>
     </div>
-    <div id="liste-cards-admin"></div>
+    <!-- Sezione OGGI -->
+    <div style="font-size:11px;font-weight:700;color:#9CA3AF;letter-spacing:.05em;margin-bottom:8px">📅 OGGI / ATTIVE</div>
+    <div id="liste-cards-oggi"></div>
+    <!-- Sezione ARCHIVIATE -->
+    <div id="archiviate-toggle" style="margin-top:14px;margin-bottom:8px;cursor:pointer;display:flex;align-items:center;gap:6px" onclick="toggleArchiviate()">
+      <span style="font-size:11px;font-weight:700;color:#9CA3AF;letter-spacing:.05em">📦 ARCHIVIATE / PASSATE</span>
+      <span id="archiviate-chevron" style="font-size:11px;color:#9CA3AF">▼</span>
+    </div>
+    <div id="liste-cards-archiviate" style="display:none"></div>
   </div>
 
   <!-- ─── TUTTI: cards promo attive ─── -->
@@ -705,11 +713,33 @@ Più è alta, più il giocatore usa combinazioni.">%Multi</th>
 
   <!-- ─── VISTA lista selezionata ─── -->
   <div id="lista-view" style="display:none">
+    <!-- Header -->
     <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px">
       <div id="lista-view-title" style="font-size:15px;font-weight:700;color:#111"></div>
       <button onclick="chiudiListaView()" style="font-size:12px;color:#6B7280;border:1px solid #E5E7EB;background:#fff;border-radius:6px;padding:5px 10px;cursor:pointer">← Torna alle liste</button>
     </div>
-    <div id="lista-stats-bar" style="display:flex;gap:16px;margin-bottom:10px;font-size:12px;color:#6B7280"></div>
+    <!-- Stats bar -->
+    <div id="lista-stats-bar" style="display:flex;gap:16px;margin-bottom:10px;font-size:12px;color:#6B7280;flex-wrap:wrap"></div>
+    <!-- Pannello assegnazione batch (solo admin) -->
+    <div id="lista-assign-panel" style="display:none;background:#EFF6FF;border:1px solid #BFDBFE;border-radius:10px;padding:14px;margin-bottom:14px">
+      <div style="font-size:12px;font-weight:700;color:#1D4ED8;margin-bottom:10px">📋 Assegnazione Batch</div>
+      <div style="display:flex;flex-wrap:wrap;gap:10px;align-items:center">
+        <div>
+          <div style="font-size:10px;color:#6B7280;margin-bottom:3px">OPERATORE</div>
+          <select id="lista-assign-op" style="padding:6px 10px;border:1px solid #BFDBFE;border-radius:6px;font-size:13px;min-width:160px"></select>
+        </div>
+        <div>
+          <div style="font-size:10px;color:#6B7280;margin-bottom:3px">N° DA ASSEGNARE</div>
+          <input id="lista-assign-count" type="number" value="60" min="1" max="500" style="width:80px;padding:6px 8px;border:1px solid #BFDBFE;border-radius:6px;font-size:13px">
+        </div>
+        <div style="display:flex;gap:8px;align-items:flex-end;padding-top:16px">
+          <button onclick="assegnaBatchPromo()" style="background:#2563EB;color:#fff;border:none;border-radius:7px;padding:7px 14px;font-size:12px;font-weight:700;cursor:pointer" title="Assegna N utenti all'operatore selezionato">📋 Assegna</button>
+          <button onclick="distribuisciEquo()" style="background:#059669;color:#fff;border:none;border-radius:7px;padding:7px 14px;font-size:12px;font-weight:700;cursor:pointer" title="Distribuisce equamente tra tutti gli operatori attivi">⚖️ Distribuisci equo</button>
+        </div>
+      </div>
+      <div id="lista-assign-status" style="margin-top:8px;font-size:12px;color:#059669"></div>
+    </div>
+    <!-- Tabella utenti -->
     <div style="overflow-x:auto">
       <div id="lista-users-container"></div>
     </div>
@@ -728,19 +758,33 @@ Più è alta, più il giocatore usa combinazioni.">%Multi</th>
         <button onclick="document.getElementById('lista-form-overlay').style.display='none'" style="border:none;background:none;font-size:20px;cursor:pointer;color:#9CA3AF">×</button>
       </div>
 
+      <!-- Preset tipologia -->
+      <div style="margin-bottom:14px">
+        <div style="font-size:11px;font-weight:700;color:#6B7280;margin-bottom:6px">TIPOLOGIA LISTA</div>
+        <div style="display:flex;flex-wrap:wrap;gap:6px">
+          <button onclick="applyPreset('gestione')" class="preset-btn" style="padding:6px 12px;font-size:12px;border:1px solid #E5E7EB;border-radius:99px;background:#F9FAFB;cursor:pointer" title="Gestione anno-round degli utenti sport">👤 Gestione Utenti</button>
+          <button onclick="applyPreset('promo_push')" class="preset-btn" style="padding:6px 12px;font-size:12px;border:1px solid #E5E7EB;border-radius:99px;background:#F9FAFB;cursor:pointer" title="Push su una promozione o torneo attivo">🚀 Promo/Torneo</button>
+          <button onclick="applyPreset('retention')" class="preset-btn" style="padding:6px 12px;font-size:12px;border:1px solid #E5E7EB;border-radius:99px;background:#F9FAFB;cursor:pointer" title="Utenti di valore in calo da recuperare">🛡️ Retention</button>
+          <button onclick="applyPreset('riattivazione')" class="preset-btn" style="padding:6px 12px;font-size:12px;border:1px solid #E5E7EB;border-radius:99px;background:#F9FAFB;cursor:pointer" title="Utenti spariti con buono storico">🔄 Riattivazione</button>
+          <button onclick="applyPreset('monitoraggio')" class="preset-btn" style="padding:6px 12px;font-size:12px;border:1px solid #E5E7EB;border-radius:99px;background:#F9FAFB;cursor:pointer" title="Utenti VIP da tenere sotto osservazione">👁️ Monitoraggio VIP</button>
+        </div>
+      </div>
       <!-- Nome + Obiettivo -->
       <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:14px">
         <div>
           <div style="font-size:11px;font-weight:700;color:#6B7280;margin-bottom:4px">NOME LISTA</div>
-          <input id="lf-nome" placeholder="es. Mondialone Luglio" style="width:100%;padding:8px 10px;border:1px solid #E5E7EB;border-radius:7px;font-size:13px">
+          <input id="lf-nome" placeholder="es. Retention Luglio" style="width:100%;padding:8px 10px;border:1px solid #E5E7EB;border-radius:7px;font-size:13px">
         </div>
         <div>
           <div style="font-size:11px;font-weight:700;color:#6B7280;margin-bottom:4px">OBIETTIVO</div>
           <select id="lf-obiettivo" style="width:100%;padding:8px 10px;border:1px solid #E5E7EB;border-radius:7px;font-size:13px">
-            <option value="attivazione">🎯 Attivazione</option>
-            <option value="riattivazione">🔄 Riattivazione</option>
-            <option value="upsell">📈 Upsell</option>
+            <option value="gestione">👤 Gestione Utenti</option>
+            <option value="promo_push">🚀 Promo / Torneo</option>
             <option value="retention">🛡️ Retention</option>
+            <option value="riattivazione">🔄 Riattivazione</option>
+            <option value="monitoraggio">👁️ Monitoraggio VIP</option>
+            <option value="attivazione">🎯 Attivazione</option>
+            <option value="upsell">📈 Upsell</option>
           </select>
         </div>
       </div>
@@ -1385,6 +1429,7 @@ async function showApp(){
   snapshotTodayList();
   loadListeStoriche().then(()=>{applyFilters();});
   applyFilters(); // re-render con dati Firebase aggiornati
+  fbSaveOpLogin(); // traccia login operatore
   // Controlla comunicazioni admin non lette
   if(!currentUser.isAdmin && !currentUser.isSupervisor) {
     setTimeout(checkComunicazioni, 1200);
@@ -4121,9 +4166,51 @@ async function generaLista() {
   } catch(e) { toast('⚠️ Errore: ' + e.message); }
 }
 
-const _OBJ_ICON = {attivazione:'🎯',riattivazione:'🔄',upsell:'📈',retention:'🛡️'};
-const _OBJ_COLOR = {attivazione:'#2563EB',riattivazione:'#7C3AED',upsell:'#059669',retention:'#D97706'};
+const _OBJ_ICON = {attivazione:'🎯',riattivazione:'🔄',upsell:'📈',retention:'🛡️',gestione:'👤',promo_push:'🚀',monitoraggio:'👁️'};
+const _OBJ_COLOR = {attivazione:'#2563EB',riattivazione:'#7C3AED',upsell:'#059669',retention:'#D97706',gestione:'#0284C7',promo_push:'#DC2626',monitoraggio:'#7C3AED'};
 
+function _makeLav(p) {
+  return Object.keys(callState||{}).filter(u=>{
+    const st=callState[u]||{}; return st.promos && st.promos[p.id];
+  }).length;
+}
+function _makeCardAdmin(p, isArchived) {
+  const lav = _makeLav(p);
+  const tot = p.totale||0;
+  const pct = tot ? Math.round(Math.min((p.batchCorrente+1)*LISTA_BATCH,tot)/tot*100) : 0;
+  const col = _OBJ_COLOR[p.obiettivo]||'#2563EB';
+  const nAssegnati = Object.keys(callState||{}).filter(u=>{
+    const st=callState[u]||{}; return st.promoRef===p.id||(st.promos&&st.promos[p.id]);
+  }).length;
+  const border = isArchived ? '1px solid #E5E7EB' : '1px solid '+col+'66';
+  const bg = isArchived ? '#FAFAFA' : '#fff';
+  return '<div style="background:'+bg+';border:'+border+';border-radius:10px;padding:14px 16px;margin-bottom:10px">' +
+    '<div style="display:flex;justify-content:space-between;align-items:flex-start">' +
+      '<div>' +
+        '<div style="font-weight:700;font-size:14px;color:'+(isArchived?'#9CA3AF':'#111')+'">'+(_OBJ_ICON[p.obiettivo]||'📋')+' '+p.nome+'</div>' +
+        '<div style="font-size:11px;color:#9CA3AF;margin-top:2px">'+
+          tot.toLocaleString('it-IT')+' utenti · da '+p.createdBy+
+          ' · '+(p.createdAt||'').slice(0,10)+'</div>' +
+      '</div>' +
+      (isArchived ? '' : '<button onclick="archiviaLista(\''+p.id+'\')" title="Archivia lista" style="font-size:11px;color:#9CA3AF;border:none;background:none;cursor:pointer;padding:2px 6px">✕</button>') +
+    '</div>' +
+    '<div style="margin-top:10px;background:#F3F4F6;border-radius:4px;height:5px">' +
+      '<div style="background:'+col+';height:5px;border-radius:4px;width:'+pct+'%;transition:.3s"></div>' +
+    '</div>' +
+    '<div style="display:flex;justify-content:space-between;align-items:center;margin-top:6px">' +
+      '<div style="font-size:11px;color:#9CA3AF">'+nAssegnati+' assegnati · '+lav+' lavorati · '+tot+' totali</div>' +
+      '<button onclick="apriLista(\''+p.id+'\')" style="background:'+col+';color:#fff;border:none;border-radius:7px;padding:5px 14px;font-size:12px;font-weight:600;cursor:pointer">Apri Lista</button>' +
+    '</div>' +
+  '</div>';
+}
+function toggleArchiviate() {
+  const el = document.getElementById('liste-cards-archiviate');
+  const ch = document.getElementById('archiviate-chevron');
+  if (!el) return;
+  const open = el.style.display !== 'none';
+  el.style.display = open ? 'none' : '';
+  if (ch) ch.textContent = open ? '▼' : '▲';
+}
 function renderListeUI() {
   const isAdm = typeof currentUser !== 'undefined' && currentUser &&
                 (currentUser.isAdmin || currentUser.isSupervisor || currentUser.isTeamLeader);
@@ -4132,61 +4219,44 @@ function renderListeUI() {
   const _ucards = document.getElementById('liste-cards-user');
   if (_ucards) _ucards.style.display = isAdm ? 'none' : '';
 
-  const promos = Object.values(_promoList).filter(p=>p && p.attiva);
+  const tuttiPromos = Object.values(_promoList).filter(p=>p);
+  const attive = tuttiPromos.filter(p=>p.attiva);
+  const archiviate = tuttiPromos.filter(p=>!p.attiva);
 
-  // Cards admin (gestione)
-  const adminC = document.getElementById('liste-cards-admin');
-  if (adminC && isAdm) {
-    if (!promos.length) {
-      adminC.innerHTML = '<div style="color:#6B7280;font-size:13px;padding:10px 0">Nessuna lista attiva. Crea la prima lista.</div>';
-    } else {
-      adminC.innerHTML = promos.map(p=>{
-        const lav = Object.keys(callState||{}).filter(u=>{
-          const st=callState[u]||{}; return st.promos && st.promos[p.id];
-        }).length;
-        const pct = p.totale ? Math.round(Math.min((p.batchCorrente+1)*LISTA_BATCH, p.totale)/p.totale*100) : 0;
-        const col = _OBJ_COLOR[p.obiettivo]||'#2563EB';
-        return '<div style="background:#fff;border:1px solid #E5E7EB;border-radius:10px;padding:14px 16px;margin-bottom:10px">' +
-          '<div style="display:flex;justify-content:space-between;align-items:flex-start">' +
-            '<div>' +
-              '<div style="font-weight:700;font-size:14px">'+(_OBJ_ICON[p.obiettivo]||'📋')+' '+p.nome+'</div>' +
-              '<div style="font-size:12px;color:#6B7280;margin-top:2px">'+
-                p.totale.toLocaleString('it-IT')+' utenti · da '+p.createdBy+
-                ' · '+(p.createdAt||'').slice(0,10)+'</div>' +
-            '</div>' +
-            '<button onclick="archiviaLista(\''+p.id+'\')" style="font-size:11px;color:#9CA3AF;border:none;background:none;cursor:pointer;padding:2px 6px">✕ Archivia</button>' +
-          '</div>' +
-          '<div style="margin-top:10px;background:#F3F4F6;border-radius:4px;height:5px">' +
-            '<div style="background:'+col+';height:5px;border-radius:4px;width:'+pct+'%;transition:.3s"></div>' +
-          '</div>' +
-          '<div style="font-size:11px;color:#9CA3AF;margin-top:4px">'+
-            'Batch '+(p.batchCorrente+1)+': '+Math.min((p.batchCorrente+1)*LISTA_BATCH,p.totale)+' / '+p.totale+' · '+lav+' lavorati</div>' +
-          '<div style="margin-top:10px;display:flex;gap:8px">' +
-            '<button onclick="apriLista(\''+p.id+'\')" style="background:'+col+';color:#fff;border:none;border-radius:7px;padding:6px 14px;font-size:12px;font-weight:600;cursor:pointer">Apri Lista</button>' +
-          '</div>' +
-        '</div>';
-      }).join('');
+  if (isAdm) {
+    const oggiC = document.getElementById('liste-cards-oggi');
+    if (oggiC) {
+      oggiC.innerHTML = !attive.length
+        ? '<div style="color:#6B7280;font-size:13px;padding:10px 0">Nessuna lista attiva. Creane una nuova.</div>'
+        : attive.map(p => _makeCardAdmin(p, false)).join('');
     }
+    const archC = document.getElementById('liste-cards-archiviate');
+    if (archC) {
+      archC.innerHTML = !archiviate.length
+        ? '<div style="color:#9CA3AF;font-size:12px;padding:6px 0">Nessuna lista archiviata.</div>'
+        : archiviate.sort((a,b)=>(b.createdAt||'').localeCompare(a.createdAt||'')).map(p => _makeCardAdmin(p, true)).join('');
+    }
+    const togSpan = document.querySelector('#archiviate-toggle span');
+    if (togSpan) togSpan.textContent = '📦 ARCHIVIATE / PASSATE ('+archiviate.length+')';
   }
 
-  // Cards utente (solo selezione)
   const userC = document.getElementById('liste-cards-user');
-  if (userC) {
-    if (!promos.length) {
+  if (userC && !isAdm) {
+    if (!attive.length) {
       userC.innerHTML = '<div style="color:#6B7280;font-size:13px;padding:20px 0;text-align:center">Nessuna lista attiva.</div>';
     } else {
-      userC.innerHTML = promos.map(p=>{
+      userC.innerHTML = attive.map(p=>{
         const col = _OBJ_COLOR[p.obiettivo]||'#2563EB';
-        const lav = Object.keys(callState||{}).filter(u=>{
-          const st=callState[u]||{}; return st.promos && st.promos[p.id];
-        }).length;
-        const pct = p.totale ? Math.round(Math.min((p.batchCorrente+1)*LISTA_BATCH,p.totale)/p.totale*100) : 0;
-        return '<div onclick="apriLista(\''+p.id+'\')" style="background:#fff;border:2px solid #E5E7EB;border-radius:12px;padding:16px;margin-bottom:12px;cursor:pointer;transition:.15s" onmouseenter="this.style.borderColor=\''+col+'\'" onmouseleave="this.style.borderColor=\'#E5E7EB\'">' +
+        const lav = _makeLav(p);
+        const tot = p.totale||0;
+        const pct = tot ? Math.round(Math.min((p.batchCorrente+1)*LISTA_BATCH,tot)/tot*100) : 0;
+        const icon = _OBJ_ICON[p.obiettivo]||'📋';
+        return '<div onclick="apriLista(this.dataset.id)" data-id="'+p.id+'" style="background:#fff;border:2px solid #E5E7EB;border-radius:12px;padding:16px;margin-bottom:12px;cursor:pointer;transition:.15s" onmouseenter="this.style.borderColor=\''+col+'\'" onmouseleave="this.style.borderColor=\'#E5E7EB\'">' +
           '<div style="display:flex;align-items:center;gap:10px">' +
-            '<div style="width:36px;height:36px;border-radius:10px;background:'+col+'22;display:flex;align-items:center;justify-content:center;font-size:20px">'+(_OBJ_ICON[p.obiettivo]||'📋')+'</div>' +
+            '<div style="width:36px;height:36px;border-radius:10px;background:'+col+'22;display:flex;align-items:center;justify-content:center;font-size:20px">'+icon+'</div>' +
             '<div>' +
               '<div style="font-weight:700;font-size:14px">'+p.nome+'</div>' +
-              '<div style="font-size:11px;color:#6B7280">'+p.totale.toLocaleString('it-IT')+' utenti eligible · '+lav+' lavorati</div>' +
+              '<div style="font-size:11px;color:#6B7280">'+tot.toLocaleString('it-IT')+' utenti · '+lav+' lavorati</div>' +
             '</div>' +
           '</div>' +
           '<div style="margin-top:10px;background:#F3F4F6;border-radius:4px;height:4px">' +
@@ -4239,12 +4309,111 @@ function chiudiListaView() {
 
 const _TREND_COL = {'IN CRESCITA':'#059669','RIENTRATO':'#7C3AED','STABILE':'#2563EB','IN CALO':'#D97706','SPARITO':'#9CA3AF'};
 
+function getCallMotivo(u) {
+  // Genera motivazione intelligente basata su storico + comportamento recente
+  const trend = (u.t||'').toUpperCase();
+  const s90 = u.s90||0;
+  const hvol = u.h_vol||0;
+  const tgg = u.tgg||0;
+  const ult = u.ult||'';
+  const hgiorni = u.h_giorni||0;
+  const isQualif = (typeof _qualifSet!=='undefined') && _qualifSet && _qualifSet.has && _qualifSet.has((u.u||'').toLowerCase());
+
+  // Calcola giorni dall'ultimo ticket
+  let daysSinceTicket = 999;
+  if (ult) {
+    try { daysSinceTicket = Math.floor((Date.now() - new Date(ult+'T00:00:00Z').getTime()) / 86400000); } catch(e){}
+  }
+
+  if (isQualif) {
+    return {icon:'🏆', label:'Qualificato Torneo', color:'#D97706',
+      note:'Utente qualificato al torneo. Conferma partecipazione e accompagna all\'evento.'};
+  }
+  if (trend === 'IN CRESCITA' && s90 > 1000) {
+    return {icon:'⭐', label:'VIP in Crescita', color:'#059669',
+      note:'Utente di alto valore con trend positivo. Contatto di qualità per fidelizzazione e VIP treatment.'};
+  }
+  if (trend === 'IN CRESCITA') {
+    return {icon:'📈', label:'Momentum Positivo', color:'#059669',
+      note:'Giocatore in crescita. Rinforza il rapporto e proponi promo mirate per consolidare.'};
+  }
+  if (trend === 'IN CALO' && s90 > 500) {
+    return {icon:'🔴', label:'Retention Urgente', color:'#DC2626',
+      note:'Utente di valore in forte calo. Valuta bonus retention personalizzato o offerta esclusiva.'};
+  }
+  if (trend === 'IN CALO' && tgg < 90) {
+    return {icon:'⚠️', label:'Nuovo in Difficoltà', color:'#D97706',
+      note:'Utente recente che sta perdendo interesse. Analizza comportamento e offri supporto onboarding.'};
+  }
+  if (trend === 'IN CALO') {
+    return {icon:'📉', label:'In Calo', color:'#D97706',
+      note:'Tendenza negativa. Capire il motivo del calo e proporre incentivo per il rientro.'};
+  }
+  if (trend === 'SPARITO' && hvol > 5000) {
+    return {icon:'💤', label:'Highroller Dormiente', color:'#7C3AED',
+      note:'Cliente storico con alto volume che si è fermato. Offerta welcome-back personalizzata.'};
+  }
+  if (trend === 'SPARITO' && daysSinceTicket > 60) {
+    return {icon:'💤', label:'Riattivazione', color:'#7C3AED',
+      note:'Utente inattivo da oltre 60gg. Approccio di riattivazione con promo dedicata.'};
+  }
+  if (trend === 'SPARITO') {
+    return {icon:'💤', label:'Dormiente', color:'#9CA3AF',
+      note:'Utente che non gioca più. Valuta se vale la pena il contatto in base allo storico.'};
+  }
+  if (trend === 'RIENTRATO') {
+    return {icon:'🔄', label:'Rientrato Recente', color:'#2563EB',
+      note:'Cliente tornato attivo. Consolida il rientro con attenzione personalizzata.'};
+  }
+  if (trend === 'STABILE' && tgg > 365) {
+    return {icon:'🛡️', label:'Fedele Stabile', color:'#0284C7',
+      note:'Cliente fidelizzato da oltre un anno. Contatto di mantenimento relazione.'};
+  }
+  return {icon:'📋', label:'Gestione', color:'#6B7280',
+    note:'Contatto standard di gestione account.'};
+}
+
+async function rimuoviAssegnazioneRiga(username) {
+  const key = username.toLowerCase();
+  if (callState[key]) { callState[key].op = ''; callState[key].assignedAt = ''; }
+  try {
+    if (typeof fbSave === 'function') await fbSave();
+    renderListaUsers();
+    toast('↩️ Assegnazione rimossa per '+username);
+  } catch(e) { toast('⚠️ '+e.message); }
+}
+
+async function assegnaUtenteRiga(username, opName) {
+  if (!opName) { toast('⚠️ Seleziona un operatore'); return; }
+  const key = username.toLowerCase();
+  callState[key] = {
+    ...(callState[key]||{}),
+    op: opName,
+    assignedAt: new Date().toISOString(),
+    promoRef: _listaAttivaId||'',
+    esito: (callState[key]||{}).esito||''
+  };
+  try {
+    if (typeof fbSave === 'function') await fbSave();
+    renderListaUsers();
+    toast('✅ '+username+' assegnato a '+opName);
+  } catch(e) { toast('⚠️ Errore: '+e.message); }
+}
+
 function renderListaUsers() {
   if (!_listaAttivaId) return;
   const promo   = _promoList[_listaAttivaId];
   const visible = _listaAllResults.slice(0, (_listaBatchOffset+1)*LISTA_BATCH);
   const container = document.getElementById('lista-users-container');
   const statsBar  = document.getElementById('lista-stats-bar');
+  const isAdm = typeof currentUser !== 'undefined' && currentUser &&
+    (currentUser.isAdmin || currentUser.isSupervisor || currentUser.isTeamLeader);
+
+  // Opzioni operatori per dropdown inline
+  const opsList = (typeof cfg !== 'undefined' && cfg && cfg.operators)
+    ? cfg.operators.filter(o => o.active !== false && o.role !== 'supervisor' && o.role !== 'admin')
+    : [];
+  const opsOptHtml = opsList.map(o=>'<option value="'+o.name+'">'+o.name+'</option>').join('');
 
   // Stats bar
   let nAssegnati=0, nLavorati=0;
@@ -4255,53 +4424,88 @@ function renderListaUsers() {
   });
   if (statsBar) {
     statsBar.innerHTML =
-      '<span>👁 <b>'+visible.length+'</b> / <b>'+_listaAllResults.length+'</b> totali</span>' +
-      '<span style="color:#059669">📋 <b>'+nAssegnati+'</b> assegnati</span>' +
-      '<span style="color:#2563EB">✅ <b>'+nLavorati+'</b> con esito</span>' +
-      '<span style="color:#9CA3AF">⏳ <b>'+(visible.length-nAssegnati)+'</b> liberi</span>';
+      '<span title="Utenti mostrati su totale lista">👁 <b>'+visible.length+'</b> / <b>'+_listaAllResults.length+'</b> totali</span>' +
+      '<span style="color:#059669" title="Utenti con operatore assegnato">📋 <b>'+nAssegnati+'</b> assegnati</span>' +
+      '<span style="color:#2563EB" title="Utenti con esito registrato">✅ <b>'+nLavorati+'</b> con esito</span>' +
+      '<span style="color:#9CA3AF" title="Utenti non ancora assegnati">⏳ <b>'+(visible.length-nAssegnati)+'</b> liberi</span>';
   }
 
   if (!container) return;
+
   const rows = visible.map((u,i) => {
     const st = ((callState||{})[u.u.toLowerCase()])||{};
     const promoSt = st.promos ? st.promos[_listaAttivaId] : null;
-    const esito = promoSt ? (promoSt.esito||'') : '';
+    const esito = promoSt ? (promoSt.esito||'') : (st.esito||'');
     const score = promo.listaScore ? Math.round((promo.listaScore[u.u]||0)/10) : 0;
     const tCol  = _TREND_COL[u.t] || '#6B7280';
+    const motivo = getCallMotivo(u);
     const esitoStyle = esito
       ? 'background:#D1FAE5;color:#065F46'
       : 'background:#F3F4F6;color:#6B7280';
-    return '<tr style="border-bottom:1px solid #F3F4F6">' +
-      '<td style="padding:7px 4px;font-size:11px;color:#9CA3AF;width:32px">'+(i+1)+'</td>' +
-      '<td style="padding:7px 4px"><b style="cursor:pointer;color:#2563EB;font-size:13px" onclick="openScheda(\''+u.u+'\')">' + u.u + '</b></td>' +
-      '<td style="padding:7px 4px;font-size:12px;color:#374151">'+(u.fn||'')+'</td>' +
-      '<td style="padding:7px 4px;font-size:12px;font-weight:600;color:'+tCol+'">'+(u.t||'—')+'</td>' +
-      '<td style="padding:7px 4px;font-size:12px">€'+(u.h_vol||0).toLocaleString('it-IT')+'</td>' +
-      '<td style="padding:7px 4px;font-size:12px">€'+(u.s90||0).toLocaleString('it-IT')+'</td>' +
-      '<td style="padding:7px 4px;font-size:12px">'+(u.tgg||0)+'gg</td>' +
-      '<td style="padding:7px 4px;font-size:11px;color:#6B7280">'+(u.ult?u.ult.slice(0,10):'—')+'</td>' +
-      '<td style="padding:7px 4px;font-size:12px;color:#374151">'+(st.op?'<b>'+st.op+'</b>':'<span style="color:#9CA3AF">—</span>')+'</td>' +
-      '<td style="padding:7px 4px"><span style="'+esitoStyle+';font-size:11px;padding:2px 8px;border-radius:99px;white-space:nowrap">'+(esito||'—')+'</span></td>' +
-      '<td style="padding:7px 4px;font-size:11px;color:#9CA3AF;text-align:right">'+score+'/100</td>' +
+
+    // Colonna operatore: se assegnato mostra nome, altrimenti select per admin
+    let opCell = '';
+    if (st.op) {
+      opCell = '<div style="font-size:12px;font-weight:600;color:#111">'+st.op+'</div>';
+      if (isAdm) opCell += '<div style="font-size:10px;color:#9CA3AF;cursor:pointer" onclick="rimuoviAssegnazioneRiga(\''+u.u+'\')" >✕ rimuovi</div>';
+    } else if (isAdm && opsOptHtml) {
+      opCell = '<select onchange="assegnaUtenteRiga(\''+u.u+'\',this.value)" style="font-size:11px;padding:3px 6px;border:1px solid #E5E7EB;border-radius:5px;width:120px"><option value="">— assegna —</option>'+opsOptHtml+'</select>';
+    } else {
+      opCell = '<span style="color:#9CA3AF">—</span>';
+    }
+
+    // Data registrazione + tooltip tenure
+    const drCell = u.dr ? u.dr.slice(0,10) : '—';
+    const drTip = u.dr ? 'Data registrazione: '+u.dr.slice(0,10)+' ('+( u.tgg||0)+' giorni fa)' : 'Data registrazione non disponibile';
+
+    // Ultimo ticket (evidenzia se vecchio > 30gg)
+    let ultCell = '—'; let ultColor = '#6B7280';
+    if (u.ult) {
+      ultCell = u.ult.slice(0,10);
+      try {
+        const dSince = Math.floor((Date.now() - new Date(u.ult+'T00:00:00Z').getTime())/86400000);
+        if (dSince > 60) ultColor = '#DC2626';
+        else if (dSince > 30) ultColor = '#D97706';
+        else ultColor = '#059669';
+      } catch(e){}
+    }
+
+    return '<tr style="border-bottom:1px solid #F3F4F6" title="'+motivo.note.replace(/'/g,"&#39;")+'">'+
+      '<td style="padding:7px 4px;font-size:11px;color:#9CA3AF;width:30px">'+(i+1)+'</td>'+
+      '<td style="padding:7px 4px">'+
+        '<b style="cursor:pointer;color:#2563EB;font-size:13px" onclick="openScheda(this.dataset.u)" data-u="'+u.u+'">'+u.u+'</b>'+
+        '<div style="font-size:10px;color:#9CA3AF">'+(u.fn||'')+'</div>'+
+      '</td>'+
+      '<td style="padding:7px 4px">'+
+        '<span style="font-size:11px;font-weight:700;color:'+motivo.color+'" title="'+motivo.note.replace(/'/g,"&#39;")+'">'+motivo.icon+' '+motivo.label+'</span>'+
+      '</td>'+
+      '<td style="padding:7px 4px;font-size:12px;font-weight:600;color:'+tCol+'" title="Tendenza ultimi 2 mesi">'+( u.t||'—')+'</td>'+
+      '<td style="padding:7px 4px;font-size:12px" title="Volume storico scommesse">€'+(u.h_vol||0).toLocaleString('it-IT')+'</td>'+
+      '<td style="padding:7px 4px;font-size:12px" title="Stake ultimi 90 giorni (GGT)">€'+(u.s90||0).toLocaleString('it-IT')+'</td>'+
+      '<td style="padding:7px 4px;font-size:12px" title="'+drTip+'">'+drCell+'</td>'+
+      '<td style="padding:7px 4px;font-size:11px;color:'+ultColor+'" title="Data ultimo ticket piazzato">'+ultCell+'</td>'+
+      '<td style="padding:7px 4px;min-width:130px">'+opCell+'</td>'+
+      '<td style="padding:7px 4px"><span style="'+esitoStyle+';font-size:11px;padding:2px 8px;border-radius:99px;white-space:nowrap">'+(esito||'—')+'</span></td>'+
+      '<td style="padding:7px 4px;font-size:11px;color:#9CA3AF;text-align:right" title="Score PromoEngine 0-100">'+score+'/100</td>'+
     '</tr>';
   }).join('');
 
   container.innerHTML =
-    '<table style="width:100%;border-collapse:collapse;font-size:13px">' +
-      '<thead><tr style="border-bottom:2px solid #E5E7EB;text-align:left;background:#F9FAFB">' +
-        '<th style="padding:8px 4px;font-size:10px;color:#9CA3AF;font-weight:700">#</th>' +
-        '<th style="padding:8px 4px;font-size:10px;color:#9CA3AF;font-weight:700">USERNAME</th>' +
-        '<th style="padding:8px 4px;font-size:10px;color:#9CA3AF;font-weight:700">PARTNER</th>' +
-        '<th style="padding:8px 4px;font-size:10px;color:#9CA3AF;font-weight:700">TREND</th>' +
-        '<th style="padding:8px 4px;font-size:10px;color:#9CA3AF;font-weight:700">VOL STOR</th>' +
-        '<th style="padding:8px 4px;font-size:10px;color:#9CA3AF;font-weight:700">STAKE 90gg</th>' +
-        '<th style="padding:8px 4px;font-size:10px;color:#9CA3AF;font-weight:700">TENURE</th>' +
-        '<th style="padding:8px 4px;font-size:10px;color:#9CA3AF;font-weight:700">ULT.TICKET</th>' +
-        '<th style="padding:8px 4px;font-size:10px;color:#9CA3AF;font-weight:700">OPERATORE</th>' +
-        '<th style="padding:8px 4px;font-size:10px;color:#9CA3AF;font-weight:700">ESITO</th>' +
-        '<th style="padding:8px 4px;font-size:10px;color:#9CA3AF;font-weight:700;text-align:right">SCORE</th>' +
-      '</tr></thead>' +
-      '<tbody>' + rows + '</tbody>' +
+    '<table style="width:100%;border-collapse:collapse;font-size:13px">'+
+      '<thead><tr style="border-bottom:2px solid #E5E7EB;text-align:left;background:#F9FAFB">'+
+        '<th style="padding:8px 4px;font-size:10px;color:#9CA3AF;font-weight:700" title="#">#</th>'+
+        '<th style="padding:8px 4px;font-size:10px;color:#9CA3AF;font-weight:700" title="Username del giocatore">USERNAME</th>'+
+        '<th style="padding:8px 4px;font-size:10px;color:#9CA3AF;font-weight:700" title="Motivazione suggerita per la chiamata">MOTIVO</th>'+
+        '<th style="padding:8px 4px;font-size:10px;color:#9CA3AF;font-weight:700" title="Tendenza attività ultimi 2 mesi">TREND</th>'+
+        '<th style="padding:8px 4px;font-size:10px;color:#9CA3AF;font-weight:700" title="Volume totale scommesse nello storico">VOL.STOR</th>'+
+        '<th style="padding:8px 4px;font-size:10px;color:#9CA3AF;font-weight:700" title="Stake (GGT) negli ultimi 90 giorni">STAKE 90gg</th>'+
+        '<th style="padding:8px 4px;font-size:10px;color:#9CA3AF;font-weight:700" title="Data di registrazione sul sito (hover per vedere i giorni)">DATA REG.</th>'+
+        '<th style="padding:8px 4px;font-size:10px;color:#9CA3AF;font-weight:700" title="Data dell\'ultimo ticket piazzato (rosso=inattivo >60gg)">ULT.TICKET</th>'+
+        '<th style="padding:8px 4px;font-size:10px;color:#9CA3AF;font-weight:700" title="Operatore assegnato a questo utente">OPERATORE</th>'+
+        '<th style="padding:8px 4px;font-size:10px;color:#9CA3AF;font-weight:700" title="Esito registrato dopo la chiamata">ESITO</th>'+
+        '<th style="padding:8px 4px;font-size:10px;color:#9CA3AF;font-weight:700;text-align:right" title="Score PromoEngine: punteggio composito 0-100">SCORE</th>'+
+      '</tr></thead>'+
+      '<tbody>'+rows+'</tbody>'+
     '</table>';
 
   // Mostra/nascondi "carica altri"
@@ -4326,6 +4530,86 @@ async function archiviaLista(id) {
     renderListeUI();
     toast('Lista archiviata');
   } catch(e) { toast('⚠️ Errore: ' + e.message); }
+}
+
+// ── Presets tipologia lista ──────────────────────────────────────────────────
+const _PRESETS = {
+  gestione: {
+    nome:'Gestione Utenti', obiettivo:'gestione',
+    stake90:0, volstor:100, tenure:30, ultgg:0,
+    tendenze:[], filiere:[],
+    pesoS90:0.3, pesoVol:0.3, pesoTrend:0.2, pesoTenure:0.2
+  },
+  promo_push: {
+    nome:'Promo Push', obiettivo:'promo_push',
+    stake90:20, volstor:50, tenure:0, ultgg:30,
+    tendenze:['IN CRESCITA','STABILE','IN CALO','RIENTRATO'],
+    filiere:[],
+    pesoS90:0.45, pesoVol:0.2, pesoTrend:0.25, pesoTenure:0.1
+  },
+  retention: {
+    nome:'Retention', obiettivo:'retention',
+    stake90:100, volstor:500, tenure:60, ultgg:45,
+    tendenze:['IN CALO'],
+    filiere:[],
+    pesoS90:0.4, pesoVol:0.3, pesoTrend:0.2, pesoTenure:0.1
+  },
+  riattivazione: {
+    nome:'Riattivazione', obiettivo:'riattivazione',
+    stake90:0, volstor:200, tenure:0, ultgg:0,
+    tendenze:['SPARITO'],
+    filiere:[],
+    pesoS90:0.1, pesoVol:0.5, pesoTrend:0.1, pesoTenure:0.3
+  },
+  monitoraggio: {
+    nome:'Monitoraggio VIP', obiettivo:'monitoraggio',
+    stake90:500, volstor:2000, tenure:90, ultgg:0,
+    tendenze:[],
+    filiere:[],
+    pesoS90:0.35, pesoVol:0.35, pesoTrend:0.15, pesoTenure:0.15
+  }
+};
+function applyPreset(key) {
+  const p = _PRESETS[key]; if (!p) return;
+  document.getElementById('lf-nome').value = p.nome;
+  document.getElementById('lf-obiettivo').value = p.obiettivo;
+  document.getElementById('lf-stake90').value = p.stake90;
+  document.getElementById('lf-volstor').value = p.volstor;
+  document.getElementById('lf-tenure').value = p.tenure;
+  document.getElementById('lf-ultgg').value = p.ultgg;
+  document.getElementById('lf-p-s90').value = p.pesoS90;
+  document.getElementById('lf-p-vol').value = p.pesoVol;
+  document.getElementById('lf-p-trend').value = p.pesoTrend;
+  document.getElementById('lf-p-tenure').value = p.pesoTenure;
+  // Tendenze
+  document.querySelectorAll('.lf-trend').forEach(cb => {
+    cb.checked = p.tendenze.length === 0 || p.tendenze.includes(cb.value);
+  });
+  // Reset filiere
+  document.querySelectorAll('.lf-fil').forEach(cb => { cb.checked = false; });
+  // Highlight preset button
+  document.querySelectorAll('.preset-btn').forEach(b => {
+    b.style.background = b.getAttribute('onclick').includes("'"+key+"'") ? '#EFF6FF' : '#F9FAFB';
+    b.style.borderColor = b.getAttribute('onclick').includes("'"+key+"'") ? '#BFDBFE' : '#E5E7EB';
+    b.style.color = b.getAttribute('onclick').includes("'"+key+"'") ? '#1D4ED8' : '';
+  });
+  anteprimaLista();
+}
+
+// ── Operatore Login Tracking ──────────────────────────────────────────────────
+async function fbSaveOpLogin() {
+  if (!currentUser || currentUser.isAdmin) return;
+  try {
+    const payload = {
+      name: currentUser.name,
+      role: currentUser.role || 'operator',
+      lastLogin: new Date().toISOString(),
+      device: navigator.userAgent.slice(0,80)
+    };
+    await fetch(FB_URL + '/operatori_activity/' + encodeURIComponent(currentUser.name) + '.json', {
+      method: 'PUT', body: JSON.stringify(payload)
+    });
+  } catch(e) {}
 }
 
 // ── End PromoEngine ──────────────────────────────────────────────────────────
