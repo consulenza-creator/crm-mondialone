@@ -4129,6 +4129,8 @@ function renderListeUI() {
                 (currentUser.isAdmin || currentUser.isSupervisor || currentUser.isTeamLeader);
   const mgmt = document.getElementById('liste-mgmt');
   if (mgmt) mgmt.style.display = isAdm ? '' : 'none';
+  const _ucards = document.getElementById('liste-cards-user');
+  if (_ucards) _ucards.style.display = isAdm ? 'none' : '';
 
   const promos = Object.values(_promoList).filter(p=>p && p.attiva);
 
@@ -4216,6 +4218,11 @@ async function apriLista(id) {
     (currentUser.isAdmin||currentUser.isSupervisor||currentUser.isTeamLeader);
   const _ap = document.getElementById('lista-assign-panel');
   if (_ap) { _ap.style.display = _isAdmAp ? '' : 'none'; if(_isAdmAp) _fillAssignOpSelect(); }
+  // Pannello assegnazione
+  const _isAdmAp = typeof currentUser!=='undefined'&&currentUser&&
+    (currentUser.isAdmin||currentUser.isSupervisor||currentUser.isTeamLeader);
+  const _ap = document.getElementById('lista-assign-panel');
+  if (_ap) { _ap.style.display = _isAdmAp ? '' : 'none'; if(_isAdmAp) _fillAssignOpSelect(); }
   // Nascondi cards
   const uc = document.getElementById('liste-cards-user');
   const ac = document.getElementById('liste-cards-admin');
@@ -4278,7 +4285,8 @@ function renderListaUsers() {
       '<td style="padding:7px 4px;font-size:12px">€'+(u.s90||0).toLocaleString('it-IT')+'</td>' +
       '<td style="padding:7px 4px;font-size:12px">'+(u.tgg||0)+'gg</td>' +
       '<td style="padding:7px 4px;font-size:11px;color:#6B7280">'+(u.ult?u.ult.slice(0,10):'—')+'</td>' +
-      '<td style="padding:7px 4px"><span style="'+esitoStyle+';font-size:11px;padding:2px 8px;border-radius:99px;white-space:nowrap">'+(esito||'da lavorare')+'</span></td>' +
+      '<td style="padding:7px 4px;font-size:12px;color:#374151">'+(st.op?'<b>'+st.op+'</b>':'<span style="color:#9CA3AF">—</span>')+'</td>' +
+      '<td style="padding:7px 4px"><span style="'+esitoStyle+';font-size:11px;padding:2px 8px;border-radius:99px;white-space:nowrap">'+(esito||'—')+'</span></td>' +
       '<td style="padding:7px 4px;font-size:11px;color:#9CA3AF;text-align:right">'+score+'/100</td>' +
     '</tr>';
   }).join('');
@@ -4294,7 +4302,8 @@ function renderListaUsers() {
         '<th style="padding:8px 4px;font-size:10px;color:#9CA3AF;font-weight:700">STAKE 90gg</th>' +
         '<th style="padding:8px 4px;font-size:10px;color:#9CA3AF;font-weight:700">TENURE</th>' +
         '<th style="padding:8px 4px;font-size:10px;color:#9CA3AF;font-weight:700">ULT.TICKET</th>' +
-        '<th style="padding:8px 4px;font-size:10px;color:#9CA3AF;font-weight:700">STATO</th>' +
+        '<th style="padding:8px 4px;font-size:10px;color:#9CA3AF;font-weight:700">OPERATORE</th>' +
+        '<th style="padding:8px 4px;font-size:10px;color:#9CA3AF;font-weight:700">ESITO</th>' +
         '<th style="padding:8px 4px;font-size:10px;color:#9CA3AF;font-weight:700;text-align:right">SCORE</th>' +
       '</tr></thead>' +
       '<tbody>' + rows + '</tbody>' +
@@ -4325,6 +4334,81 @@ async function archiviaLista(id) {
 }
 
 // ── End PromoEngine ──────────────────────────────────────────────────────────
+
+// ── Assegnazione PromoEngine ──────────────────────────────────────────────
+
+function _fillAssignOpSelect() {
+  const sel = document.getElementById('lista-assign-op');
+  if (!sel) return;
+  const ops = (typeof cfg !== 'undefined' && cfg && cfg.operators)
+    ? cfg.operators.filter(o => o.active !== false && o.role !== 'supervisor' && o.role !== 'admin')
+    : [];
+  sel.innerHTML = ops.length
+    ? ops.map(o => '<option value="'+o.name+'">'+o.name+'</option>').join('')
+    : '<option value="">— nessun operatore —</option>';
+}
+
+async function assegnaBatchPromo() {
+  if (!_listaAttivaId) return;
+  const promo  = _promoList[_listaAttivaId];
+  const opName = (document.getElementById('lista-assign-op')||{}).value;
+  const count  = parseInt((document.getElementById('lista-assign-count')||{}).value) || 60;
+  if (!opName) { toast('⚠️ Seleziona un operatore'); return; }
+  const st = document.getElementById('lista-assign-status');
+  if (st) st.textContent = '⏳ Assegnazione in corso...';
+  let assigned = 0;
+  for (const uname of (promo.listaCompleta || [])) {
+    const key = uname.toLowerCase();
+    if (callState[key] && callState[key].op) continue;
+    callState[key] = { ...(callState[key]||{}), op:opName, assignedAt:new Date().toISOString(), promoRef:_listaAttivaId, esito:(callState[key]||{}).esito||'' };
+    assigned++;
+    if (assigned >= count) break;
+  }
+  if (!assigned) { toast('⚠️ Tutti già assegnati'); if(st)st.textContent=''; return; }
+  try {
+    if (typeof fbSave === 'function') await fbSave();
+    renderListaUsers();
+    toast('✅ '+assigned+' utenti assegnati a '+opName+' → in "Le Mie Chiamate"');
+    if (st) st.innerHTML = '✅ <b>'+assigned+'</b> assegnati a <b>'+opName+'</b> · visibili in <b>Le Mie Chiamate</b>';
+  } catch(e) { toast('⚠️ Errore: '+e.message); if(st)st.textContent=''; }
+}
+
+async function distribuisciEquo() {
+  if (!_listaAttivaId) return;
+  const promo = _promoList[_listaAttivaId];
+  const count = parseInt((document.getElementById('lista-assign-count')||{}).value) || 60;
+  const allOps = (typeof cfg !== 'undefined' && cfg && cfg.operators)
+    ? cfg.operators.filter(o => o.active !== false && o.role !== 'supervisor' && o.role !== 'admin')
+    : [];
+  if (!allOps.length) { toast('⚠️ Nessun operatore disponibile'); return; }
+  const perOp  = Math.ceil(count / allOps.length);
+  const st     = document.getElementById('lista-assign-status');
+  if (st) st.textContent = '⏳ Distribuzione...';
+  const cnts = {}; allOps.forEach(o => cnts[o.name]=0);
+  let opIdx=0, total=0;
+  for (const uname of (promo.listaCompleta || [])) {
+    if (total >= count) break;
+    const key = uname.toLowerCase();
+    if (callState[key] && callState[key].op) continue;
+    let tries=0;
+    while (tries < allOps.length && cnts[allOps[opIdx%allOps.length].name] >= perOp) { opIdx++; tries++; }
+    if (tries >= allOps.length) break;
+    const opName = allOps[opIdx%allOps.length].name;
+    callState[key] = { ...(callState[key]||{}), op:opName, assignedAt:new Date().toISOString(), promoRef:_listaAttivaId, esito:(callState[key]||{}).esito||'' };
+    cnts[opName]++; opIdx++; total++;
+  }
+  if (!total) { toast('⚠️ Nessun utente da assegnare'); if(st)st.textContent=''; return; }
+  try {
+    if (typeof fbSave === 'function') await fbSave();
+    renderListaUsers();
+    const summary = allOps.filter(o=>cnts[o.name]>0).map(o=>o.name+': '+cnts[o.name]).join(' · ');
+    toast('✅ '+total+' distribuiti equamente');
+    if (st) st.innerHTML = '✅ <b>'+total+'</b> distribuiti · '+summary+'<br><small style="color:#059669">→ Visibili in Le Mie Chiamate</small>';
+  } catch(e) { toast('⚠️ Errore: '+e.message); if(st)st.textContent=''; }
+}
+
+// ── End Assegnazione ──────────────────────────────────────────────────────
+
 
 
 </script>
