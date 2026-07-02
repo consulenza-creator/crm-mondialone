@@ -1179,7 +1179,7 @@ function doOpLogin(){
     if(!entered){setLoginError('Inserisci il PIN');return;}
     if(entered!==op.pin){setLoginError('PIN errato');document.getElementById('op-pin-field').value='';return;}
   }
-  const role=op.role||'operator';currentUser={name:op.name,isAdmin:false,isSupervisor:role==='supervisor',role,filiere:op.filiere||[],fathername:op.fathername||[],tg_chat_id:op.tg_chat_id||'',supervisedOperators:op.supervisedOperators||[]};
+  const role=op.role||'operator';currentUser={name:op.name,isAdmin:false,isSupervisor:role==='supervisor',isTeamLeader:role==='team_leader',role,filiere:op.filiere||[],fathername:op.fathername||[],tg_chat_id:op.tg_chat_id||'',supervisedOperators:op.supervisedOperators||[]};
   showApp();
 }
 function setLoginError(msg){document.getElementById('login-error').textContent=msg;}
@@ -1218,7 +1218,7 @@ async function showApp(){
   document.getElementById('screen-login').style.display='none';
   document.getElementById('screen-app').style.display='flex';
   document.getElementById('user-chip').textContent='👤 '+currentUser.name;
-  document.getElementById('btn-gear').style.display=(currentUser.isAdmin||currentUser.isSupervisor)?'inline':'none';
+  document.getElementById('btn-gear').style.display=(currentUser.isAdmin||currentUser.isSupervisor||currentUser.isTeamLeader)?'inline':'none';
   document.getElementById('mattina-bar').style.display=currentUser.isAdmin?'flex':'none';
   fillOpSelects();fillFnSelects();
   if(!currentUser.isAdmin&&currentUser.name){
@@ -1243,11 +1243,11 @@ async function showApp(){
   }
   // Nascondi filtro operatore per operatori normali
   const fltOpWrap = document.getElementById('flt-op');
-  if(fltOpWrap) fltOpWrap.style.display = (currentUser.isAdmin||currentUser.isSupervisor) ? '' : 'none';
+  if(fltOpWrap) fltOpWrap.style.display = (currentUser.isAdmin||currentUser.isSupervisor||currentUser.isTeamLeader) ? '' : 'none';
   const tabMie=document.getElementById('tab-mie');
   if(tabMie){
     tabMie.style.display='block';
-    if(currentUser.isAdmin||currentUser.isSupervisor){
+    if(currentUser.isAdmin||currentUser.isSupervisor||currentUser.isTeamLeader){
       tabMie.innerHTML='📊 Andamento <span class="tab-count" id="tc-mie">0</span>';
     }
   }
@@ -1387,6 +1387,18 @@ function getUsers(){
     return u;
   }
 
+  // Team Leader: vede le chiamate assegnate ai suoi operatori
+  if(currentUser.isTeamLeader){
+    const myOps=currentUser.supervisedOperators||[];
+    u=u.filter(x=>{const op=(callState[x.u]||{}).op;return op&&myOps.includes(op);});
+    Object.keys(callState).forEach(uName=>{
+      const st=callState[uName]||{};
+      if(!st.op||!myOps.includes(st.op))return;
+      if(top60Set.has(uName.toLowerCase()))return;
+      u.push(_makeStorico(uName));
+    });
+    return u;
+  }
   // Operatore normale: vede solo le proprie chiamate assegnate (anche già lavorate)
   u=u.filter(x=>(callState[x.u]||{}).op===currentUser.name);
   // Aggiungi chiamate passate non più in TOP60 (include tutte, anche con esito finale)
@@ -1521,10 +1533,11 @@ function renderTable(){
   }
   function _rowHtml(u){
     const st=callState[u.u]||{},done=ESITI_CLOSE.has(st.esito),isPending=!!st.esito&&!done,isTop=u.r<=10;
-    const canAssign=currentUser.isAdmin||currentUser.isSupervisor;
-    const opOpts='<option value="">—</option>'+ops.map(n=>`<option${st.op===n?' selected':''} value="${n}">${n}</option>`).join('');
+    const canAssign=currentUser.isAdmin||currentUser.isSupervisor||currentUser.isTeamLeader;
+    const _visibleOps=currentUser.isTeamLeader?(currentUser.supervisedOperators||[]):ops;
+    const opOpts='<option value="">—</option>'+_visibleOps.map(n=>`<option${st.op===n?' selected':''} value="${n}">${n}</option>`).join('');
     const esOpts=_esitoOpts(st.esito||'');
-    const esLocked=!!(st.locked&&!currentUser.isAdmin);
+    const esLocked=!!(st.locked&&!currentUser.isAdmin&&!currentUser.isTeamLeader);
     const hasId=u.id&&u.id!=='—';
     return `<tr class="${isTop?'top10':''} ${done?'row-done':''} ${isPending?'row-pending':''} ${u.dnc?'row-dnc':''}" data-u="${u.u}" onclick="handleRowClick(event,'${u.u}')">
       <td style="text-align:center">${u._storico?(()=>{const _se=(callState[u.u]||{}).esito;const _sc=_se==='ATTIVATO'?'#059669':_se&&_se!==''?'#6B7280':'#F59E0B';const _sl=_se?_se.substring(0,4):'PASS.';return '<span style="background:'+_sc+';color:#fff;font-size:9px;font-weight:700;border-radius:4px;padding:2px 5px">'+_sl+'</span>';})():`<span class="rank-badge ${isTop?'rank-top':'rank-rest'}">${u.r}</span>`}</td>
@@ -1571,7 +1584,7 @@ function copyId(e,id){e.stopPropagation();navigator.clipboard.writeText(id).then
 function setOp(u,v){if(!callState[u])callState[u]={};callState[u].op=v;if(v&&!callState[u].assignedAt)callState[u].assignedAt=new Date().toISOString();if(!v)delete callState[u].assignedAt;saveState();updateProg();if(v)notifyOpAssigned(u,v);}
 function setEsito(u,v){
   if(!callState[u])callState[u]={};
-  if(callState[u].locked&&!currentUser.isAdmin){toast('⛔ Esito bloccato. Solo admin può modificarlo.');return;}
+  if(callState[u].locked&&!currentUser.isAdmin&&!currentUser.isTeamLeader){toast('⛔ Esito bloccato. Solo admin può modificarlo.');return;}
   callState[u].esito=v;
   if(v&&ESITI_CLOSE.has(v)){
     callState[u].locked=true;callState[u].lockedBy=currentUser.name;callState[u].lockedAt=new Date().toISOString();fbLogStorico(u,v,currentUser.name);
@@ -2462,7 +2475,7 @@ function renderConv(){
 // ── LE MIE ──────────────────────────────────────────────────
 function renderMie(){
   // Admin/Supervisor → mostra andamento chiamate per operatore
-  if(currentUser&&(currentUser.isAdmin||currentUser.isSupervisor)){
+  if(currentUser&&(currentUser.isAdmin||currentUser.isSupervisor||currentUser.isTeamLeader)){
     renderAndamentoChiamate();
     return;
   }
@@ -3017,7 +3030,7 @@ function toggleSettings(){
   p.classList.toggle('open');
   if(p.classList.contains('open')){
     // Adatta panel a supervisor vs admin
-    const isSup = currentUser&&currentUser.isSupervisor&&!currentUser.isAdmin;
+    const isSup = currentUser&&(currentUser.isSupervisor||currentUser.isTeamLeader)&&!currentUser.isAdmin;
     document.querySelector('#settings-panel .sp-tabs button[onclick*="op"]').style.display = isSup?'none':'';
     document.querySelector('#settings-panel .sp-tabs button[onclick*="sys"]').style.display = isSup?'none':'';
     const titleEl = document.querySelector('#settings-panel .sp-tabs')?.previousElementSibling?.querySelector('div div:first-child');
@@ -3071,6 +3084,7 @@ function renderOpList(){
         <select id="edit-role-${i}" onchange="toggleSupFields(${i})" style="width:100%;border:1px solid #E5E7EB;border-radius:6px;padding:6px 10px;font-size:12px;margin-bottom:8px;box-sizing:border-box">
           <option value="operator" ${(o.role||'operator')==='operator'?'selected':''}>👤 Operatore</option>
           <option value="supervisor" ${o.role==='supervisor'?'selected':''}>🔑 Supervisor</option>
+          <option value="team_leader" ${o.role==='team_leader'?'selected':''}>👥 Team Leader</option>
         </select>
         <div id="edit-sup-section-${i}" style="display:${isSup?'block':'none'}">
           <div style="font-size:10px;color:#7C3AED;font-weight:700;margin-bottom:6px">👁 OPERATORI MONITORATI (vuoto = tutti)</div>
@@ -3690,7 +3704,9 @@ async function commInvia(){
   const chPopup=(document.getElementById('comm-ch-popup')||{checked:true}).checked;
   const chTg=(document.getElementById('comm-ch-tg')||{checked:false}).checked;
   if(!chPopup&&!chTg){_commSt('⚠️ Seleziona almeno un canale',true);return;}
-  const destinatari=_commGetDestinatari();
+  // Team leader: destinatari forzati ai suoi operatori se non ha selezionato manualmente
+  let destinatari=_commGetDestinatari();
+  if(currentUser.isTeamLeader&&!destinatari) destinatari=currentUser.supervisedOperators||null;
   const payload={titolo,testo,tipo,autore:(typeof currentUser!=='undefined'?currentUser.name:'admin'),timestamp:new Date().toISOString(),destinatari,canali:{popup:chPopup,telegram:chTg}};
   _commSt('⏳ Invio in corso...');
   const risultati=[];
@@ -3785,7 +3801,7 @@ function _esc(s){return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;')
 // Polling comunicazioni per operatori (ogni 20s) — chiamata anche da EventSource
 function _startCommPolling(){
   if(typeof currentUser==='undefined'||!currentUser)return;
-  if(currentUser.isAdmin||currentUser.isSupervisor)return;
+  if(currentUser.isAdmin||currentUser.isSupervisor||currentUser.isTeamLeader)return;
   setInterval(checkComunicazioni, 20000);
 }
 // Hook nell'EventSource esistente: quando callState cambia, controlla _comm
