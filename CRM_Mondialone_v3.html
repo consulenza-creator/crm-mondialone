@@ -4211,6 +4211,11 @@ async function apriLista(id) {
   const t  = document.getElementById('lista-view-title');
   if (vt) vt.style.display = '';
   if (t)  t.textContent = (_OBJ_ICON[promo.obiettivo]||'📋') + ' ' + promo.nome;
+  // Pannello assegnazione
+  const _isAdmAp = typeof currentUser!=='undefined'&&currentUser&&
+    (currentUser.isAdmin||currentUser.isSupervisor||currentUser.isTeamLeader);
+  const _ap = document.getElementById('lista-assign-panel');
+  if (_ap) { _ap.style.display = _isAdmAp ? '' : 'none'; if(_isAdmAp) _fillAssignOpSelect(); }
   // Nascondi cards
   const uc = document.getElementById('liste-cards-user');
   const ac = document.getElementById('liste-cards-admin');
@@ -4240,15 +4245,18 @@ function renderListaUsers() {
   const statsBar  = document.getElementById('lista-stats-bar');
 
   // Stats bar
-  const lav = visible.filter(u=>{
+  let nAssegnati=0, nLavorati=0;
+  visible.forEach(u=>{
     const st=(callState||{})[u.u.toLowerCase()]||{};
-    return st.promos && st.promos[_listaAttivaId];
-  }).length;
+    if(st.op) nAssegnati++;
+    if(st.esito && st.esito!=='') nLavorati++;
+  });
   if (statsBar) {
     statsBar.innerHTML =
-      '<span>👁 <b>'+visible.length+'</b> visibili su <b>'+_listaAllResults.length+'</b> totali</span>' +
-      '<span>✅ <b>'+lav+'</b> lavorati</span>' +
-      '<span>⏳ <b>'+(visible.length-lav)+'</b> da lavorare</span>';
+      '<span>👁 <b>'+visible.length+'</b> / <b>'+_listaAllResults.length+'</b> totali</span>' +
+      '<span style="color:#059669">📋 <b>'+nAssegnati+'</b> assegnati</span>' +
+      '<span style="color:#2563EB">✅ <b>'+nLavorati+'</b> con esito</span>' +
+      '<span style="color:#9CA3AF">⏳ <b>'+(visible.length-nAssegnati)+'</b> liberi</span>';
   }
 
   if (!container) return;
