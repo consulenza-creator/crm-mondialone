@@ -894,12 +894,12 @@ Più è alta, più il giocatore usa combinazioni.">%Multi</th>
 
   <!-- SUB-TAB NAVIGATION -->
   <div class="dash-stab-nav">
-    <button class="dash-stab active" id="dsub-riepilogo" onclick="setDashSub('riepilogo')">📈 Riepilogo</button>
+    <button class="dash-stab active" id="dsub-stats" onclick="setDashSub('stats')">📊 Statistiche</button>
+    <button class="dash-stab" id="dsub-riepilogo" onclick="setDashSub('riepilogo')">📈 Riepilogo</button>
     <button class="dash-stab" id="dsub-qualif" onclick="setDashSub('qualif')">👤 Qualificati</button>
     <button class="dash-stab" id="dsub-inattivi" onclick="setDashSub('inattivi')">😴 Da Riattivare <span id="dash-inatt-badge" style="background:#EF4444;color:#fff;border-radius:99px;padding:1px 6px;font-size:10px;font-weight:700;margin-left:4px">0</span></button>
     <button class="dash-stab" id="dsub-father" onclick="setDashSub('father')">🤝 Per Father</button>
     <button class="dash-stab" id="dsub-sport" onclick="setDashSub('sport')">⚽ Top Sport</button>
-    <button class="dash-stab" id="dsub-stats" onclick="setDashSub('stats')">📊 Statistiche</button>
   </div>
 
   <!-- FILIERA FILTER -->
@@ -3435,7 +3435,7 @@ function openBetExternal() {
 // ═══════════════════════════════════════════════════════
 // DASHBOARD TAB  (rebuild completo 27/06/2026)
 // ═══════════════════════════════════════════════════════
-let dashSubTab = 'riepilogo';
+let dashSubTab = 'stats';
 let dashFiliera = 'ALL';
 let tacEnriched = false;
 
@@ -3560,46 +3560,101 @@ function _renderDashContent(list, inPromo, attivi, inatt) {
 }
 
 function _dashRiepilogo(list,inPromo,attivi,inatt) {
-  var tot=list.length;
+  var tot=list.length||1;
+  var convPct=Math.round(inPromo.length/tot*100);
+  var attPct=Math.round(attivi.length/tot*100);
+  var inaPct=Math.round(inatt.length/tot*100);
+  var volPromo=inPromo.reduce(function(s,q){return s+(q.vq||0);},0);
+  var volAtt=attivi.reduce(function(s,q){return s+(q.vt||0);},0);
+
+  // Top father per conversion
   var fMap={};
   list.forEach(function(q){
     var f=(q.p||'—').trim()||'—';
-    if(!fMap[f]) fMap[f]={tot:0,promo:0,att:0,inn:0};
+    if(!fMap[f]) fMap[f]={tot:0,promo:0,vol:0};
     fMap[f].tot++;
-    if((q.vq||0)>0) fMap[f].promo++;
-    else if((q.vt||0)>0) fMap[f].att++;
-    else fMap[f].inn++;
+    if((q.vq||0)>0){fMap[f].promo++;fMap[f].vol+=(q.vq||0);}
   });
-  var rows=Object.entries(fMap).sort(function(a,b){return b[1].tot-a[1].tot;}).slice(0,20);
-  var maxF=rows.length?rows[0][1].tot:1;
-  var fHtml=rows.map(function(r){
+  var topFather=Object.entries(fMap)
+    .filter(function(r){return r[1].tot>=3;})
+    .sort(function(a,b){return (b[1].promo/b[1].tot)-(a[1].promo/a[1].tot);})
+    .slice(0,8);
+
+  var fRows=topFather.map(function(r,i){
     var name=r[0],d=r[1];
-    return '<div class="dash-dist-row"><span class="dash-dist-label" title="'+name+'">'+name+'</span>'
-      +'<div class="dash-dist-bar-wrap"><div class="dash-dist-bar" style="width:'+Math.round(d.tot/maxF*100)+'%"></div></div>'
-      +'<span class="dash-dist-n">'+d.tot+'</span>'
-      +'<span style="font-size:10px;color:#059669;min-width:26px;text-align:right">'+d.promo+'✅</span>'
-      +'<span style="font-size:10px;color:#EF4444;min-width:26px;text-align:right">'+d.inn+'😴</span></div>';
+    var conv=Math.round(d.promo/d.tot*100);
+    var cc=conv>=40?'#00C853':conv>=20?'#D97706':'#EF4444';
+    var barW=Math.round(d.promo/d.tot*100);
+    return '<tr style="border-top:1px solid #F1F5F9">'
+      +'<td style="padding:8px 10px;color:#94A3B8;font-size:11px">'+(i+1)+'</td>'
+      +'<td style="padding:8px 10px;font-weight:600;font-size:12px">'+name+'</td>'
+      +'<td style="padding:8px 10px;text-align:right;font-size:12px">'+d.tot+'</td>'
+      +'<td style="padding:8px 10px;text-align:right;font-size:12px;color:#00C853;font-weight:700">'+d.promo+'</td>'
+      +'<td style="padding:8px 10px;min-width:100px">'
+        +'<div style="display:flex;align-items:center;gap:6px">'
+          +'<div style="flex:1;background:#F1F5F9;border-radius:3px;height:6px">'
+            +'<div style="width:'+barW+'%;background:'+cc+';height:6px;border-radius:3px"></div>'
+          +'</div>'
+          +'<span style="font-size:11px;font-weight:700;color:'+cc+'">'+conv+'%</span>'
+        +'</div>'
+      +'</td>'
+      +'<td style="padding:8px 10px;text-align:right;font-size:11px;color:#64748B">'+(d.vol>0?'€'+Math.round(d.vol/1000)+'k':'—')+'</td>'
+    +'</tr>';
   }).join('');
-  var tipRows=[
-    {l:'✅ In promo (usano indirette calcio)',n:inPromo.length,c:'#059669'},
-    {l:'⚠️ Attivi – non in promo',n:attivi.length,c:'#F59E0B'},
-    {l:'😴 Inattivi – non hanno giocato',n:inatt.length,c:'#EF4444'},
-    {l:'⭐ TOP 60 monitorati',n:60,c:'#D97706'}
-  ].map(function(r){
-    return '<div class="dash-dist-row"><span class="dash-dist-label" style="max-width:220px">'+r.l+'</span>'
-      +'<div class="dash-dist-bar-wrap"><div class="dash-dist-bar" style="width:'+Math.round(r.n/tot*100)+'%;background:'+r.c+'"></div></div>'
-      +'<span class="dash-dist-n" style="color:'+r.c+'">'+r.n+'</span>'
-      +'<span class="dash-dist-pct">'+Math.round(r.n/tot*100)+'%</span></div>';
-  }).join('');
+
   document.getElementById('dash-content').innerHTML=
-    '<div style="display:grid;grid-template-columns:1fr 1fr;gap:20px;flex-wrap:wrap">'
-    +'<div><h4 style="font-size:11px;font-weight:700;color:#374151;text-transform:uppercase;letter-spacing:.5px;margin:0 0 10px">Distribuzione per Father (top 20)</h4>'+fHtml+'</div>'
-    +'<div><h4 style="font-size:11px;font-weight:700;color:#374151;text-transform:uppercase;letter-spacing:.5px;margin:0 0 10px">Tipologia qualificati</h4>'+tipRows
-    +'<div style="margin-top:12px;padding:10px;background:#F9FAFB;border-radius:8px;font-size:11px;color:#6B7280">'
-    +'<strong style="color:#374151">Dati al:</strong> '+(DATA_DATE||'—')+'&nbsp;&middot;&nbsp;'
-    +'<strong style="color:#374151">Filiera:</strong> '+dashFiliera+'&nbsp;&middot;&nbsp;'
-    +'<strong style="color:#374151">Mondialone:</strong> '+(TAC_USERS?_fmtN(TAC_USERS.length)+' utenti':'caricamento...')
-    +'</div></div></div>';
+    // KPI cards
+    '<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:12px;margin-bottom:20px">'
+      +[
+        {l:'Qualificati totali',v:tot.toLocaleString('it-IT'),sub:'pool attuale',c:'#2563EB',bg:'#EFF6FF'},
+        {l:'In promo',v:inPromo.length.toLocaleString('it-IT'),sub:convPct+'% del pool',c:'#00C853',bg:'#EAFBF1'},
+        {l:'Attivi no promo',v:attivi.length.toLocaleString('it-IT'),sub:attPct+'% del pool',c:'#D97706',bg:'#FFF7D6'},
+        {l:'Inattivi',v:inatt.length.toLocaleString('it-IT'),sub:inaPct+'% del pool',c:'#EF4444',bg:'#FEECEC'},
+        {l:'Vol. promo',v:'€'+Math.round(volPromo/1000)+'k',sub:'scommesso Mondialone',c:'#7C3AED',bg:'#F5F3FF'},
+      ].map(function(k){
+        return '<div style="background:'+k.bg+';border-radius:14px;padding:14px 16px;border:1px solid '+k.c+'22">'
+          +'<div style="font-size:10px;font-weight:700;color:'+k.c+';text-transform:uppercase;letter-spacing:.5px;margin-bottom:6px">'+k.l+'</div>'
+          +'<div style="font-size:28px;font-weight:800;color:'+k.c+';line-height:1">'+k.v+'</div>'
+          +'<div style="font-size:11px;color:#64748B;margin-top:4px">'+k.sub+'</div>'
+        +'</div>';
+      }).join('')
+    +'</div>'
+    // Stacked bar mix
+    +'<div style="background:#fff;border-radius:14px;padding:16px 20px;margin-bottom:16px;border:1px solid #E2E8F0">'
+      +'<div style="font-size:11px;font-weight:700;color:#64748B;text-transform:uppercase;letter-spacing:.5px;margin-bottom:10px">Composizione pool</div>'
+      +'<div style="height:14px;border-radius:7px;overflow:hidden;display:flex">'
+        +'<div style="width:'+convPct+'%;background:#00C853" title="In promo: '+inPromo.length+'"></div>'
+        +'<div style="width:'+attPct+'%;background:#FCD34D" title="Attivi: '+attivi.length+'"></div>'
+        +'<div style="width:'+inaPct+'%;background:#FCA5A5" title="Inattivi: '+inatt.length+'"></div>'
+      +'</div>'
+      +'<div style="display:flex;gap:16px;margin-top:8px;font-size:11px">'
+        +'<span><span style="color:#00C853">●</span> In promo '+convPct+'%</span>'
+        +'<span><span style="color:#FCD34D">●</span> Attivi '+attPct+'%</span>'
+        +'<span><span style="color:#FCA5A5">●</span> Inattivi '+inaPct+'%</span>'
+      +'</div>'
+    +'</div>'
+    // Top father table
+    +'<div style="background:#fff;border-radius:14px;border:1px solid #E2E8F0;overflow:hidden">'
+      +'<div style="padding:14px 20px;border-bottom:1px solid #F1F5F9;display:flex;justify-content:space-between;align-items:center">'
+        +'<span style="font-size:12px;font-weight:700;color:#0F172A">🏆 Top Partner per conversione</span>'
+        +'<span style="font-size:11px;color:#94A3B8">min. 3 qualificati</span>'
+      +'</div>'
+      +'<div style="overflow-x:auto">'
+        +'<table style="width:100%;border-collapse:collapse">'
+          +'<thead><tr style="background:#F8FAFC">'
+            +'<th style="padding:8px 10px;text-align:left;font-size:10px;color:#64748B;font-weight:700">#</th>'
+            +'<th style="padding:8px 10px;text-align:left;font-size:10px;color:#64748B;font-weight:700">PARTNER</th>'
+            +'<th style="padding:8px 10px;text-align:right;font-size:10px;color:#64748B;font-weight:700">QUALIF.</th>'
+            +'<th style="padding:8px 10px;text-align:right;font-size:10px;color:#00C853;font-weight:700">IN PROMO</th>'
+            +'<th style="padding:8px 10px;font-size:10px;color:#64748B;font-weight:700">CONV%</th>'
+            +'<th style="padding:8px 10px;text-align:right;font-size:10px;color:#64748B;font-weight:700">VOL.PROMO</th>'
+          +'</tr></thead>'
+          +'<tbody>'+fRows+'</tbody>'
+        +'</table>'
+      +'</div>'
+    +'</div>'
+    // Footer info
+    +'<div style="margin-top:10px;font-size:11px;color:#94A3B8;text-align:right">Dati al '+(DATA_DATE||'—')+' · Filiera: '+dashFiliera+'</div>';
 }
 
 function _dashQualif(list) {
@@ -3615,9 +3670,35 @@ function _dashQualif(list) {
     +'<option value="attivi">Attivi no promo ('+attCount+')</option>'
     +'<option value="inatt">Inattivi ('+innCount+')</option>'
     +'</select><span id="dash-q-count" style="font-size:11px;color:#6B7280">'+list.length+' utenti</span></div>'
-    +'<div style="overflow-x:auto;max-height:55vh;overflow-y:auto"><table class="dash-table"><thead><tr>'
-    +'<th>#</th><th>Username</th><th>Father</th><th>Data Qualif.</th><th>Stato</th><th>Vol. Mondialone</th><th>Vol. Promo</th><th>% Multi</th>'
-    +'</tr></thead><tbody id="dash-q-tbody">'+_dashQualifRows(list,200)+'</tbody></table></div>';
+    +'<div style="overflow-x:auto;max-height:55vh;overflow-y:auto"><table class="dash-table">'
+    +'<thead>'
+    +'<tr style="background:#0F172A;color:#fff">'
+      +'<th style="padding:8px 10px;text-align:left;font-size:10px;font-weight:700">#</th>'
+      +'<th style="padding:8px 10px;text-align:left;font-size:10px;font-weight:700">USERNAME</th>'
+      +'<th style="padding:8px 10px;text-align:left;font-size:10px;font-weight:700">FATHER</th>'
+      +'<th style="padding:8px 10px;text-align:left;font-size:10px;font-weight:700">DATA QUALIF.</th>'
+      +'<th style="padding:8px 10px;text-align:left;font-size:10px;font-weight:700">STATO</th>'
+      +'<th style="padding:8px 10px;text-align:right;font-size:10px;font-weight:700">VOL. MOND.</th>'
+      +'<th style="padding:8px 10px;text-align:right;font-size:10px;font-weight:700">VOL. PROMO</th>'
+      +'<th style="padding:8px 10px;text-align:right;font-size:10px;font-weight:700">% MULTI</th>'
+    +'</tr>'
+    +(function(){
+      var tVt=list.reduce(function(s,u){return s+(u.vt||0);},0);
+      var tVq=list.reduce(function(s,u){return s+(u.vq||0);},0);
+      var tPm=list.filter(function(u){return (u.pm||0)>0;});
+      var avgPm=tPm.length?Math.round(tPm.reduce(function(s,u){return s+(u.pm||0);},0)/tPm.length):0;
+      return '<tr style="background:#00C85315;font-weight:700;border-bottom:2px solid #00C853">'
+        +'<td style="padding:7px 10px;font-size:11px;color:#64748B">TOT.</td>'
+        +'<td style="padding:7px 10px;font-size:12px;font-weight:800;color:#0F172A">'+list.length+' utenti</td>'
+        +'<td colspan="3" style="padding:7px 10px"></td>'
+        +'<td style="padding:7px 10px;text-align:right;font-size:12px;font-weight:800;color:#2563EB">'+(tVt>0?'€'+Math.round(tVt).toLocaleString('it-IT'):'—')+'</td>'
+        +'<td style="padding:7px 10px;text-align:right;font-size:12px;font-weight:800;color:#00C853">'+(tVq>0?'€'+Math.round(tVq).toLocaleString('it-IT'):'—')+'</td>'
+        +'<td style="padding:7px 10px;text-align:right;font-size:12px;font-weight:800;color:#7C3AED">'+(avgPm>0?avgPm+'% avg':'—')+'</td>'
+      +'</tr>';
+    })()
+    +'</thead>'
+    +'<tbody id="dash-q-tbody">'+_dashQualifRows(list,200)+'</tbody>'
+    +'</table></div>';
 }
 
 function _dashQualifFilter() {
@@ -3653,7 +3734,33 @@ function _dashInattivi(inatt) {
     var cc=u._sc>500?'#EF4444':u._sc>200?'#F59E0B':'#3B82F6';
     return '<tr><td style="color:#9CA3AF">'+(i+1)+'</td><td><strong style="color:#DC2626">'+u.u+'</strong></td><td style="color:#6B7280">'+(u.p||'—')+'</td><td style="text-align:right;color:#F59E0B">'+(u._hv>0?'€'+Math.round(u._hv).toLocaleString('it-IT'):'—')+'</td><td style="text-align:right">'+(u._hg>0?Math.round(u._hg)+' gg':'—')+'</td><td>'+(u._hp||'—')+'</td><td><span class="dash-badge" style="background:'+cc+'22;color:'+cc+'">'+Math.round(u._sc)+'</span></td></tr>';
   }).join('');
-  document.getElementById('dash-content').innerHTML='<div style="margin-bottom:8px;font-size:11px;color:#6B7280">'+sorted.length+' qualificati inattivi · score riattivazione (vol. storico + giorni attivi + sport pref.)</div><div style="overflow-x:auto;max-height:60vh;overflow-y:auto"><table class="dash-table"><thead><tr><th>#</th><th>Username</th><th>Father</th><th>Vol.Storico</th><th>Gg.Attivi</th><th>Sport Pref.</th><th>Score</th></tr></thead><tbody>'+rows+'</tbody></table></div>';
+  var totInHv=sorted.reduce(function(s,u){return s+u._hv;},0);
+  var totInGg=sorted.length?Math.round(sorted.reduce(function(s,u){return s+u._hg;},0)/sorted.length):0;
+  var totRow2='<tr style="background:#FEECEC;font-weight:700;border-bottom:2px solid #EF4444">'
+    +'<td style="padding:8px 10px;font-size:11px;color:#64748B">TOT.</td>'
+    +'<td style="padding:8px 10px;font-size:12px;font-weight:800;color:#EF4444">'+sorted.length+' inattivi</td>'
+    +'<td style="padding:8px 10px"></td>'
+    +'<td style="padding:8px 10px;text-align:right;font-size:12px;font-weight:800;color:#D97706">'+(totInHv>0?'€'+Math.round(totInHv).toLocaleString('it-IT'):'—')+'</td>'
+    +'<td style="padding:8px 10px;text-align:right;font-size:12px;font-weight:800;color:#64748B">'+(totInGg>0?totInGg+' gg avg':'—')+'</td>'
+    +'<td colspan="2" style="padding:8px 10px"></td>'
+  +'</tr>';
+  document.getElementById('dash-content').innerHTML=
+    '<div style="overflow-x:auto;max-height:60vh;overflow-y:auto">'
+    +'<table class="dash-table" style="width:100%;border-collapse:collapse">'
+    +'<thead>'
+    +'<tr style="background:#0F172A;color:#fff">'
+      +'<th style="padding:8px 10px;text-align:left;font-size:10px;font-weight:700">#</th>'
+      +'<th style="padding:8px 10px;text-align:left;font-size:10px;font-weight:700">USERNAME</th>'
+      +'<th style="padding:8px 10px;text-align:left;font-size:10px;font-weight:700">FATHER</th>'
+      +'<th style="padding:8px 10px;text-align:right;font-size:10px;font-weight:700">VOL. STORICO</th>'
+      +'<th style="padding:8px 10px;text-align:right;font-size:10px;font-weight:700">GG. ATTIVI</th>'
+      +'<th style="padding:8px 10px;text-align:left;font-size:10px;font-weight:700">SPORT PREF.</th>'
+      +'<th style="padding:8px 10px;text-align:right;font-size:10px;font-weight:700">SCORE</th>'
+    +'</tr>'
+    +totRow2
+    +'</thead>'
+    +'<tbody>'+rows+'</tbody>'
+    +'</table></div>';
 }
 
 function _dashFather(list) {
@@ -3670,7 +3777,40 @@ function _dashFather(list) {
     var name=r[0],d=r[1],conv=Math.round(d.promo/d.n*100),cc=conv>=30?'#059669':conv>=15?'#F59E0B':'#EF4444';
     return '<tr><td style="color:#9CA3AF">'+(i+1)+'</td><td><strong>'+name+'</strong></td><td style="text-align:right;font-weight:700">'+d.n+'</td><td style="text-align:right;color:#059669;font-weight:700">'+d.promo+'</td><td style="text-align:right;color:#F59E0B;font-weight:700">'+d.att+'</td><td style="text-align:right;color:#EF4444;font-weight:700">'+d.inn+'</td><td style="text-align:right;font-weight:700;color:'+cc+'">'+conv+'%</td><td style="text-align:right;color:#6B7280">'+(d.vq>0?'€'+Math.round(d.vq).toLocaleString('it-IT'):'—')+'</td></tr>';
   }).join('');
-  document.getElementById('dash-content').innerHTML='<div style="overflow-x:auto;max-height:65vh;overflow-y:auto"><table class="dash-table"><thead><tr><th>#</th><th>Father/Partner</th><th>Tot.</th><th style="color:#059669">Promo</th><th style="color:#F59E0B">Attivi</th><th style="color:#EF4444">Inatt.</th><th>Conv%</th><th>Vol.Promo</th></tr></thead><tbody>'+rows+'</tbody></table></div>';
+  var totF=Object.values(fMap).reduce(function(s,d){return s+d.n;},0);
+  var totFP=Object.values(fMap).reduce(function(s,d){return s+d.promo;},0);
+  var totFA=Object.values(fMap).reduce(function(s,d){return s+d.att;},0);
+  var totFI=Object.values(fMap).reduce(function(s,d){return s+d.inn;},0);
+  var totFV=Object.values(fMap).reduce(function(s,d){return s+d.vq;},0);
+  var totConv=totF?Math.round(totFP/totF*100):0;
+  var totRow='<tr style="background:#00C85315;font-weight:700;border-bottom:2px solid #00C853">'
+    +'<td style="padding:8px 10px;font-size:11px;color:#64748B">TOT.</td>'
+    +'<td style="padding:8px 10px;font-size:12px;font-weight:800">'+Object.keys(fMap).length+' partner</td>'
+    +'<td style="padding:8px 10px;text-align:right;font-size:12px;font-weight:800">'+totF+'</td>'
+    +'<td style="padding:8px 10px;text-align:right;font-size:12px;font-weight:800;color:#00C853">'+totFP+'</td>'
+    +'<td style="padding:8px 10px;text-align:right;font-size:12px;font-weight:800;color:#D97706">'+totFA+'</td>'
+    +'<td style="padding:8px 10px;text-align:right;font-size:12px;font-weight:800;color:#EF4444">'+totFI+'</td>'
+    +'<td style="padding:8px 10px;text-align:right;font-size:12px;font-weight:800;color:'+(totConv>=20?'#00C853':'#EF4444')+'">'+totConv+'%</td>'
+    +'<td style="padding:8px 10px;text-align:right;font-size:12px;font-weight:800;color:#64748B">'+(totFV>0?'€'+Math.round(totFV).toLocaleString('it-IT'):'—')+'</td>'
+  +'</tr>';
+  document.getElementById('dash-content').innerHTML=
+    '<div style="overflow-x:auto;max-height:65vh;overflow-y:auto">'
+    +'<table class="dash-table" style="width:100%;border-collapse:collapse">'
+    +'<thead>'
+    +'<tr style="background:#0F172A;color:#fff">'
+      +'<th style="padding:8px 10px;text-align:left;font-size:10px;font-weight:700">#</th>'
+      +'<th style="padding:8px 10px;text-align:left;font-size:10px;font-weight:700">PARTNER / FATHER</th>'
+      +'<th style="padding:8px 10px;text-align:right;font-size:10px;font-weight:700">TOT.</th>'
+      +'<th style="padding:8px 10px;text-align:right;font-size:10px;color:#00C853;font-weight:700">PROMO</th>'
+      +'<th style="padding:8px 10px;text-align:right;font-size:10px;color:#FCD34D;font-weight:700">ATTIVI</th>'
+      +'<th style="padding:8px 10px;text-align:right;font-size:10px;color:#FCA5A5;font-weight:700">INATT.</th>'
+      +'<th style="padding:8px 10px;text-align:right;font-size:10px;font-weight:700">CONV%</th>'
+      +'<th style="padding:8px 10px;text-align:right;font-size:10px;font-weight:700">VOL.PROMO</th>'
+    +'</tr>'
+    +totRow
+    +'</thead>'
+    +'<tbody>'+rows+'</tbody>'
+    +'</table></div>';
 }
 
 function _dashSport() {
