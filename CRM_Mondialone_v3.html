@@ -4616,108 +4616,149 @@ function renderListaUsers() {
   const isAdm = typeof currentUser !== 'undefined' && currentUser &&
     (currentUser.isAdmin || currentUser.isSupervisor || currentUser.isTeamLeader);
 
-  // Opzioni operatori per dropdown inline
+  // Build qualif map per Vol.Mond lookup
+  const qualifMap = {};
+  (typeof QUALIFICATI !== 'undefined' ? QUALIFICATI : []).forEach(function(q){
+    qualifMap[q.u.toLowerCase()] = q;
+  });
+
+  // Operatori disponibili per dropdown
   const opsList = (typeof cfg !== 'undefined' && cfg && cfg.operators)
-    ? cfg.operators.filter(o => o.active !== false && o.role !== 'supervisor' && o.role !== 'admin')
+    ? cfg.operators.filter(function(o){ return o.active !== false && o.role !== 'supervisor' && o.role !== 'admin'; })
     : [];
-  const opsOptHtml = opsList.map(o=>'<option value="'+o.name+'">'+o.name+'</option>').join('');
+  const opsOptHtml = opsList.map(function(o){ return '<option value="'+o.name+'">'+o.name+'</option>'; }).join('');
 
   // Stats bar
-  let nAssegnati=0, nLavorati=0;
-  visible.forEach(u=>{
-    const st=(callState||{})[u.u.toLowerCase()]||{};
-    if(st.op) nAssegnati++;
-    if(st.esito && st.esito!=='') nLavorati++;
+  var nAssegnati=0, nLavorati=0, nCampanella=0;
+  visible.forEach(function(u){
+    var st=(callState||{})[u.u.toLowerCase()]||{};
+    var ps=st.promos?st.promos[_listaAttivaId]:{};
+    if(st.op||( ps&&ps.op)) nAssegnati++;
+    if(ps&&ps.esito&&ps.esito!=='') nLavorati++;
+    if(ps&&ps.campanella) nCampanella++;
   });
   if (statsBar) {
     statsBar.innerHTML =
-      '<span title="Utenti mostrati su totale lista">👁 <b>'+visible.length+'</b> / <b>'+_listaAllResults.length+'</b> totali</span>' +
-      '<span style="color:#059669" title="Utenti con operatore assegnato">📋 <b>'+nAssegnati+'</b> assegnati</span>' +
-      '<span style="color:#2563EB" title="Utenti con esito registrato">✅ <b>'+nLavorati+'</b> con esito</span>' +
-      '<span style="color:#9CA3AF" title="Utenti non ancora assegnati">⏳ <b>'+(visible.length-nAssegnati)+'</b> liberi</span>';
+      '<span title="Utenti mostrati su totale lista">👁 <b>'+visible.length+'</b> / <b>'+_listaAllResults.length+'</b></span>' +
+      '<span style="color:#059669">📋 <b>'+nAssegnati+'</b> assegnati</span>' +
+      '<span style="color:#2563EB">✅ <b>'+nLavorati+'</b> lavorati</span>' +
+      '<span style="color:#D97706">🔔 <b>'+nCampanella+'</b> da richiamare</span>' +
+      '<span style="color:#9CA3AF">⏳ <b>'+(visible.length-nAssegnati)+'</b> liberi</span>';
   }
 
   if (!container) return;
 
-  const rows = visible.map((u,i) => {
-    const st = ((callState||{})[u.u.toLowerCase()])||{};
-    const promoSt = st.promos ? st.promos[_listaAttivaId] : null;
-    const esito = promoSt ? (promoSt.esito||'') : (st.esito||'');
-    const score = promo.listaScore ? Math.round((promo.listaScore[u.u]||0)/10) : 0;
-    const tCol  = _TREND_COL[u.t] || '#6B7280';
-    const motivo = getCallMotivo(u);
-    const esitoStyle = esito
-      ? 'background:#D1FAE5;color:#065F46'
-      : 'background:#F3F4F6;color:#6B7280';
+  const rows = visible.map(function(u,i) {
+    var st  = ((callState||{})[u.u.toLowerCase()])||{};
+    var ps  = (st.promos && st.promos[_listaAttivaId]) ? st.promos[_listaAttivaId] : {};
+    var esito = ps.esito || st.esito || '';
+    var nota  = ps.note || '';
+    var camp  = ps.campanella || false;
+    var tCol  = _TREND_COL[u.t] || '#6B7280';
+    var motivo = getCallMotivo(u);
 
-    // Colonna operatore: se assegnato mostra nome, altrimenti select per admin
-    let opCell = '';
+    // Filiera badge
+    var filColor = u.f==='PassionGroup'?'#00C853':u.f==='Microgame'?'#2563EB':'#9CA3AF';
+    var filLabel = u.f==='PassionGroup'?'PG':u.f==='Microgame'?'MG':'FO';
+    var filBadge = '<span style="background:'+filColor+'18;color:'+filColor+';border:1px solid '+filColor+'44;border-radius:4px;padding:1px 5px;font-size:10px;font-weight:700">'+filLabel+'</span>';
+
+    // Vol.Mond da QUALIFICATI
+    var qd = qualifMap[u.u.toLowerCase()];
+    var volMond = qd ? (qd.vq||0) : null;
+    var volMondCell = volMond === null ? '<span style="color:#D1D5DB">—</span>'
+      : volMond > 0 ? '<span style="color:#00C853;font-weight:700">€'+volMond.toLocaleString('it-IT')+'</span>'
+      : '<span style="color:#9CA3AF">€0</span>';
+
+    // Operatore cell
+    var opCell = '';
     if (st.op) {
       opCell = '<div style="font-size:12px;font-weight:600;color:#111">'+st.op+'</div>';
-      if (isAdm) opCell += '<div style="font-size:10px;color:#9CA3AF;cursor:pointer" onclick="rimuoviAssegnazioneRiga(\''+u.u+'\')" >✕ rimuovi</div>';
+      if (isAdm) opCell += '<div style="font-size:10px;color:#9CA3AF;cursor:pointer" onclick="rimuoviAssegnazioneRiga(\''+u.u+'\')">✕ rimuovi</div>';
     } else if (isAdm && opsOptHtml) {
-      opCell = '<select onchange="assegnaUtenteRiga(\''+u.u+'\',this.value)" style="font-size:11px;padding:3px 6px;border:1px solid #E5E7EB;border-radius:5px;width:120px"><option value="">— assegna —</option>'+opsOptHtml+'</select>';
+      opCell = '<select onchange="assegnaUtenteRiga(\''+u.u+'\',this.value)" style="font-size:11px;padding:3px 6px;border:1px solid #E5E7EB;border-radius:5px;width:110px"><option value="">— assegna —</option>'+opsOptHtml+'</select>';
     } else {
       opCell = '<span style="color:#9CA3AF">—</span>';
     }
 
-    // Data registrazione + tooltip tenure
-    const drCell = u.dr ? u.dr.slice(0,10) : '—';
-    const drTip = u.dr ? 'Data registrazione: '+u.dr.slice(0,10)+' ('+( u.tgg||0)+' giorni fa)' : 'Data registrazione non disponibile';
+    // Esito badge
+    var esitoStyle = esito ? 'background:#D1FAE5;color:#065F46' : 'background:#F3F4F6;color:#6B7280';
 
-    // Ultimo ticket (evidenzia se vecchio > 30gg)
-    let ultCell = '—'; let ultColor = '#6B7280';
-    if (u.ult) {
-      ultCell = u.ult.slice(0,10);
-      try {
-        const dSince = Math.floor((Date.now() - new Date(u.ult+'T00:00:00Z').getTime())/86400000);
-        if (dSince > 60) ultColor = '#DC2626';
-        else if (dSince > 30) ultColor = '#D97706';
-        else ultColor = '#059669';
-      } catch(e){}
-    }
+    // Campanella
+    var campIcon = camp
+      ? '<button onclick="toggleCampanella(\''+u.u+'\',\''+_listaAttivaId+'\')" title="Da richiamare — click per rimuovere" style="border:none;background:none;cursor:pointer;font-size:16px;padding:2px">🔔</button>'
+      : '<button onclick="toggleCampanella(\''+u.u+'\',\''+_listaAttivaId+'\')" title="Segna da richiamare" style="border:none;background:none;cursor:pointer;font-size:16px;padding:2px;opacity:.25">🔔</button>';
 
-    return '<tr style="border-bottom:1px solid #F3F4F6" title="'+motivo.note.replace(/'/g,"&#39;")+'">'+
-      '<td style="padding:7px 4px;font-size:11px;color:#9CA3AF;width:30px">'+(i+1)+'</td>'+
-      '<td style="padding:7px 4px">'+
+    return '<tr style="border-bottom:1px solid #F3F4F6">'+
+      '<td style="padding:7px 4px;font-size:11px;color:#9CA3AF;width:28px">'+(i+1)+'</td>'+
+      '<td style="padding:7px 6px;min-width:110px">'+
         '<b style="cursor:pointer;color:#2563EB;font-size:13px" onclick="openScheda(this.dataset.u)" data-u="'+u.u+'">'+u.u+'</b>'+
-        '<div style="font-size:10px;color:#9CA3AF">'+(u.fn||'')+'</div>'+
       '</td>'+
-      '<td style="padding:7px 4px">'+
+      '<td style="padding:7px 6px;font-size:12px;color:#374151">'+( u.fn||'—')+'</td>'+
+      '<td style="padding:7px 6px">'+filBadge+'</td>'+
+      '<td style="padding:7px 6px">'+
         '<span style="font-size:11px;font-weight:700;color:'+motivo.color+'" title="'+motivo.note.replace(/'/g,"&#39;")+'">'+motivo.icon+' '+motivo.label+'</span>'+
       '</td>'+
-      '<td style="padding:7px 4px;font-size:12px;font-weight:600;color:'+tCol+'" title="Tendenza ultimi 2 mesi">'+( u.t||'—')+'</td>'+
-      '<td style="padding:7px 4px;font-size:12px" title="Volume storico scommesse">€'+(u.h_vol||0).toLocaleString('it-IT')+'</td>'+
-      '<td style="padding:7px 4px;font-size:12px" title="Stake ultimi 90 giorni (GGT)">€'+(u.s90||0).toLocaleString('it-IT')+'</td>'+
-      '<td style="padding:7px 4px;font-size:12px" title="'+drTip+'">'+drCell+'</td>'+
-      '<td style="padding:7px 4px;font-size:11px;color:'+ultColor+'" title="Data ultimo ticket piazzato">'+ultCell+'</td>'+
-      '<td style="padding:7px 4px;min-width:130px">'+opCell+'</td>'+
-      '<td style="padding:7px 4px"><span style="'+esitoStyle+';font-size:11px;padding:2px 8px;border-radius:99px;white-space:nowrap">'+(esito||'—')+'</span></td>'+
-      '<td style="padding:7px 4px;font-size:11px;color:#9CA3AF;text-align:right" title="Score PromoEngine 0-100">'+score+'/100</td>'+
+      '<td style="padding:7px 6px;font-size:12px;font-weight:600;color:'+tCol+'">'+(u.t||'—')+'</td>'+
+      '<td style="padding:7px 6px;font-size:12px;text-align:right">€'+(u.h_vol||0).toLocaleString('it-IT')+'</td>'+
+      '<td style="padding:7px 6px;font-size:12px;text-align:right">€'+(u.s90||0).toLocaleString('it-IT')+'</td>'+
+      '<td style="padding:7px 6px;font-size:12px;text-align:right;color:#7C3AED;font-weight:600">'+(u.pm||0)+'%</td>'+
+      '<td style="padding:7px 6px;text-align:right">'+volMondCell+'</td>'+
+      '<td style="padding:7px 6px;font-size:12px;color:#374151">'+(u.dr?u.dr.slice(0,10):'—')+'</td>'+
+      '<td style="padding:7px 6px;min-width:110px">'+opCell+'</td>'+
+      '<td style="padding:7px 6px"><span style="'+esitoStyle+';font-size:11px;padding:2px 8px;border-radius:99px;white-space:nowrap">'+(esito||'—')+'</span></td>'+
+      '<td style="padding:7px 6px;min-width:130px">'+
+        '<input type="text" value="'+nota.replace(/"/g,'&quot;')+'" placeholder="note..." '+
+          'onblur="saveNote(\''+u.u+'\',\''+_listaAttivaId+'\',this.value)" '+
+          'style="width:100%;padding:4px 6px;border:1px solid #E5E7EB;border-radius:5px;font-size:11px;color:#374151">'+
+      '</td>'+
+      '<td style="padding:7px 4px;text-align:center">'+campIcon+'</td>'+
     '</tr>';
   }).join('');
 
   container.innerHTML =
+    '<div style="overflow-x:auto">'+
     '<table style="width:100%;border-collapse:collapse;font-size:13px">'+
-      '<thead><tr style="border-bottom:2px solid #E5E7EB;text-align:left;background:#F9FAFB">'+
-        '<th style="padding:8px 4px;font-size:10px;color:#9CA3AF;font-weight:700" title="#">#</th>'+
-        '<th style="padding:8px 4px;font-size:10px;color:#9CA3AF;font-weight:700" title="Username del giocatore">USERNAME</th>'+
-        '<th style="padding:8px 4px;font-size:10px;color:#9CA3AF;font-weight:700" title="Motivazione suggerita per la chiamata">MOTIVO</th>'+
-        '<th style="padding:8px 4px;font-size:10px;color:#9CA3AF;font-weight:700" title="Tendenza attività ultimi 2 mesi">TREND</th>'+
-        '<th style="padding:8px 4px;font-size:10px;color:#9CA3AF;font-weight:700" title="Volume totale scommesse nello storico">VOL.STOR</th>'+
-        '<th style="padding:8px 4px;font-size:10px;color:#9CA3AF;font-weight:700" title="Stake (GGT) negli ultimi 90 giorni">STAKE 90gg</th>'+
-        '<th style="padding:8px 4px;font-size:10px;color:#9CA3AF;font-weight:700" title="Data di registrazione sul sito (hover per vedere i giorni)">DATA REG.</th>'+
-        '<th style="padding:8px 4px;font-size:10px;color:#9CA3AF;font-weight:700" title="Data dell\'ultimo ticket piazzato (rosso=inattivo >60gg)">ULT.TICKET</th>'+
-        '<th style="padding:8px 4px;font-size:10px;color:#9CA3AF;font-weight:700" title="Operatore assegnato a questo utente">OPERATORE</th>'+
-        '<th style="padding:8px 4px;font-size:10px;color:#9CA3AF;font-weight:700" title="Esito registrato dopo la chiamata">ESITO</th>'+
-        '<th style="padding:8px 4px;font-size:10px;color:#9CA3AF;font-weight:700;text-align:right" title="Score PromoEngine: punteggio composito 0-100">SCORE</th>'+
+      '<thead><tr style="background:#0F172A;color:#fff;text-align:left">'+
+        '<th style="padding:9px 4px;font-size:10px;font-weight:700">#</th>'+
+        '<th style="padding:9px 6px;font-size:10px;font-weight:700">USERNAME</th>'+
+        '<th style="padding:9px 6px;font-size:10px;font-weight:700">FATHER</th>'+
+        '<th style="padding:9px 6px;font-size:10px;font-weight:700">FILIERA</th>'+
+        '<th style="padding:9px 6px;font-size:10px;font-weight:700">MOTIVO</th>'+
+        '<th style="padding:9px 6px;font-size:10px;font-weight:700">TREND</th>'+
+        '<th style="padding:9px 6px;font-size:10px;font-weight:700;text-align:right">VOL.STOR</th>'+
+        '<th style="padding:9px 6px;font-size:10px;font-weight:700;text-align:right">STAKE 90gg</th>'+
+        '<th style="padding:9px 6px;font-size:10px;font-weight:700;text-align:right">%MULTI</th>'+
+        '<th style="padding:9px 6px;font-size:10px;font-weight:700;text-align:right">VOL.MOND</th>'+
+        '<th style="padding:9px 6px;font-size:10px;font-weight:700">DATA REG.</th>'+
+        '<th style="padding:9px 6px;font-size:10px;font-weight:700">OPERATORE</th>'+
+        '<th style="padding:9px 6px;font-size:10px;font-weight:700">ESITO</th>'+
+        '<th style="padding:9px 6px;font-size:10px;font-weight:700;min-width:130px">NOTE</th>'+
+        '<th style="padding:9px 6px;font-size:10px;font-weight:700;text-align:center">🔔</th>'+
       '</tr></thead>'+
       '<tbody>'+rows+'</tbody>'+
-    '</table>';
+    '</table></div>';
 
-  // Mostra/nascondi "carica altri"
   const btn = document.getElementById('lista-load-more');
   if (btn) btn.style.display = visible.length < _listaAllResults.length ? '' : 'none';
+}
+
+function saveNote(uname, listaId, val) {
+  var ul = uname.toLowerCase();
+  if (!callState[ul]) callState[ul] = {};
+  if (!callState[ul].promos) callState[ul].promos = {};
+  if (!callState[ul].promos[listaId]) callState[ul].promos[listaId] = {};
+  callState[ul].promos[listaId].note = val;
+  fbSave();
+}
+
+function toggleCampanella(uname, listaId) {
+  var ul = uname.toLowerCase();
+  if (!callState[ul]) callState[ul] = {};
+  if (!callState[ul].promos) callState[ul].promos = {};
+  if (!callState[ul].promos[listaId]) callState[ul].promos[listaId] = {};
+  callState[ul].promos[listaId].campanella = !callState[ul].promos[listaId].campanella;
+  fbSave();
+  renderListaUsers();
 }
 
 function caricaAltri60() {
