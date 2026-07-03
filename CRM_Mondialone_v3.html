@@ -3268,7 +3268,7 @@ function renderOpList(){
   if(!ops.length){document.getElementById('op-list').innerHTML='<p style="color:#94A3B8;font-size:12px;padding:8px 0">Nessun operatore</p>';return;}
   const opNames=ops.map(o=>o.name);
   document.getElementById('op-list').innerHTML=ops.map((o,i)=>{
-    const isSup=o.role==='supervisor';
+    const isSup=o.role==='supervisor'||o.role==='team_leader';
     const hasTg=!!o.tg_chat_id;
     const roleColor=isSup?'#7C3AED':'#2563EB';
     const roleLabel=isSup?'Supervisor':'Operatore';
@@ -3298,7 +3298,7 @@ function renderOpList(){
           <option value="team_leader" ${o.role==='team_leader'?'selected':''}>👥 Team Leader</option>
         </select>
         <div id="edit-sup-section-${i}" style="display:${isSup?'block':'none'}">
-          <div style="font-size:10px;color:#7C3AED;font-weight:700;margin-bottom:6px">👁 OPERATORI MONITORATI (vuoto = tutti)</div>
+          <div style="font-size:10px;color:#7C3AED;font-weight:700;margin-bottom:6px">👥 OPERATORI DEL TEAM</div>
           <div style="display:flex;flex-wrap:wrap;gap:4px;margin-bottom:8px" id="edit-sup-ops-${i}">
             ${opNames.filter(n=>n!==o.name).map(n=>`<label style="display:flex;align-items:center;gap:4px;background:${(o.supervisedOperators||[]).includes(n)?'#EDE9FE':'#F3F4F6'};border:1px solid ${(o.supervisedOperators||[]).includes(n)?'#8B5CF6':'#E5E7EB'};border-radius:6px;padding:3px 8px;cursor:pointer;font-size:11px;font-weight:600;color:${(o.supervisedOperators||[]).includes(n)?'#7C3AED':'#374151'}"><input type="checkbox" value="${n}" ${(o.supervisedOperators||[]).includes(n)?'checked':''} style="display:none" onchange="this.closest('label').style.background=this.checked?'#EDE9FE':'#F3F4F6';this.closest('label').style.borderColor=this.checked?'#8B5CF6':'#E5E7EB';this.closest('label').style.color=this.checked?'#7C3AED':'#374151'">${n}</label>`).join('')}
           </div>
@@ -3328,7 +3328,7 @@ function renderOpList(){
 function toggleSupFields(i){
   const role=document.getElementById('edit-role-'+i).value;
   const sec=document.getElementById('edit-sup-section-'+i);
-  if(sec)sec.style.display=role==='supervisor'?'block':'none';
+  if(sec)sec.style.display=(role==='supervisor'||role==='team_leader')?'block':'none';
 }
 function editOp(i){
   // Toggle edit panel
