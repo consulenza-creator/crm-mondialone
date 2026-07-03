@@ -4616,44 +4616,42 @@ function renderListaUsers() {
   const isAdm = typeof currentUser !== 'undefined' && currentUser &&
     (currentUser.isAdmin || currentUser.isSupervisor || currentUser.isTeamLeader);
 
-  // Build qualif map per Vol.Mond lookup
+  // Build qualif map per Vol.Mond
   const qualifMap = {};
   (typeof QUALIFICATI !== 'undefined' ? QUALIFICATI : []).forEach(function(q){
     qualifMap[q.u.toLowerCase()] = q;
   });
 
-  // Operatori disponibili per dropdown
+  // Operatori per dropdown
   const opsList = (typeof cfg !== 'undefined' && cfg && cfg.operators)
     ? cfg.operators.filter(function(o){ return o.active !== false && o.role !== 'supervisor' && o.role !== 'admin'; })
     : [];
   const opsOptHtml = opsList.map(function(o){ return '<option value="'+o.name+'">'+o.name+'</option>'; }).join('');
 
   // Stats bar
-  var nAssegnati=0, nLavorati=0, nCampanella=0;
+  var nAssegnati=0, nLavorati=0, nRichiama=0;
   visible.forEach(function(u){
     var st=(callState||{})[u.u.toLowerCase()]||{};
-    var ps=st.promos?st.promos[_listaAttivaId]:{};
-    if(st.op||( ps&&ps.op)) nAssegnati++;
-    if(ps&&ps.esito&&ps.esito!=='') nLavorati++;
-    if(ps&&ps.campanella) nCampanella++;
+    if(st.op) nAssegnati++;
+    if(st.esito&&st.esito!=='') nLavorati++;
+    if(st.richiama) nRichiama++;
   });
   if (statsBar) {
     statsBar.innerHTML =
-      '<span title="Utenti mostrati su totale lista">👁 <b>'+visible.length+'</b> / <b>'+_listaAllResults.length+'</b></span>' +
+      '<span>👁 <b>'+visible.length+'</b> / <b>'+_listaAllResults.length+'</b></span>' +
       '<span style="color:#059669">📋 <b>'+nAssegnati+'</b> assegnati</span>' +
       '<span style="color:#2563EB">✅ <b>'+nLavorati+'</b> lavorati</span>' +
-      '<span style="color:#D97706">🔔 <b>'+nCampanella+'</b> da richiamare</span>' +
+      '<span style="color:#D97706">🔔 <b>'+nRichiama+'</b> da richiamare</span>' +
       '<span style="color:#9CA3AF">⏳ <b>'+(visible.length-nAssegnati)+'</b> liberi</span>';
   }
 
   if (!container) return;
 
   const rows = visible.map(function(u,i) {
-    var st  = ((callState||{})[u.u.toLowerCase()])||{};
-    var ps  = (st.promos && st.promos[_listaAttivaId]) ? st.promos[_listaAttivaId] : {};
-    var esito = ps.esito || st.esito || '';
-    var nota  = ps.note || '';
-    var camp  = ps.campanella || false;
+    var ul  = u.u.toLowerCase();
+    var st  = (callState||{})[ul] || {};
+    var esito = st.esito || '';
+    var nota  = st.note  || '';
     var tCol  = _TREND_COL[u.t] || '#6B7280';
     var motivo = getCallMotivo(u);
 
@@ -4662,14 +4660,14 @@ function renderListaUsers() {
     var filLabel = u.f==='PassionGroup'?'PG':u.f==='Microgame'?'MG':'FO';
     var filBadge = '<span style="background:'+filColor+'18;color:'+filColor+';border:1px solid '+filColor+'44;border-radius:4px;padding:1px 5px;font-size:10px;font-weight:700">'+filLabel+'</span>';
 
-    // Vol.Mond da QUALIFICATI
-    var qd = qualifMap[u.u.toLowerCase()];
+    // Vol.Mond
+    var qd = qualifMap[ul];
     var volMond = qd ? (qd.vq||0) : null;
-    var volMondCell = volMond === null ? '<span style="color:#D1D5DB">—</span>'
-      : volMond > 0 ? '<span style="color:#00C853;font-weight:700">€'+volMond.toLocaleString('it-IT')+'</span>'
+    var volMondCell = volMond===null ? '<span style="color:#D1D5DB">—</span>'
+      : volMond>0 ? '<span style="color:#00C853;font-weight:700">€'+volMond.toLocaleString('it-IT')+'</span>'
       : '<span style="color:#9CA3AF">€0</span>';
 
-    // Operatore cell
+    // Operatore
     var opCell = '';
     if (st.op) {
       opCell = '<div style="font-size:12px;font-weight:600;color:#111">'+st.op+'</div>';
@@ -4680,20 +4678,24 @@ function renderListaUsers() {
       opCell = '<span style="color:#9CA3AF">—</span>';
     }
 
-    // Esito badge
-    var esitoStyle = esito ? 'background:#D1FAE5;color:#065F46' : 'background:#F3F4F6;color:#6B7280';
+    // Esito select (uguale a chiamate)
+    var esLocked = !!(st.locked && currentUser && !currentUser.isAdmin && !currentUser.isTeamLeader);
+    var esSelect = esLocked
+      ? '<span style="background:#D1FAE5;color:#065F46;font-size:11px;padding:2px 8px;border-radius:99px">'+esito+'</span>'
+      : '<select class="esito-sel'+(esito?' has-val':'')+'" onchange="setEsito(\''+ul+'\',this.value)">'+_esitoOpts(esito)+'</select>';
 
-    // Campanella
-    var campIcon = camp
-      ? '<button onclick="toggleCampanella(\''+u.u+'\',\''+_listaAttivaId+'\')" title="Da richiamare — click per rimuovere" style="border:none;background:none;cursor:pointer;font-size:16px;padding:2px">🔔</button>'
-      : '<button onclick="toggleCampanella(\''+u.u+'\',\''+_listaAttivaId+'\')" title="Segna da richiamare" style="border:none;background:none;cursor:pointer;font-size:16px;padding:2px;opacity:.25">🔔</button>';
+    // Note (uguale a chiamate)
+    var noteInp = '<input class="note-inp" value="'+nota.replace(/"/g,'&quot;')+'" placeholder="Note..." onchange="setNote(\''+ul+'\',this.value)">';
 
-    return '<tr style="border-bottom:1px solid #F3F4F6">'+
+    // Campanella → apre reminder modal come in chiamate
+    var richBtn = '<button class="richiama-btn'+(st.richiama?' on':'')+'" onclick="toggleRichiama(\''+ul+'\')">'+(st.richiama?'🔔':'🔕')+'</button>';
+
+    return '<tr data-u="'+ul+'" style="border-bottom:1px solid #F3F4F6">'+
       '<td style="padding:7px 4px;font-size:11px;color:#9CA3AF;width:28px">'+(i+1)+'</td>'+
       '<td style="padding:7px 6px;min-width:110px">'+
         '<b style="cursor:pointer;color:#2563EB;font-size:13px" onclick="openScheda(this.dataset.u)" data-u="'+u.u+'">'+u.u+'</b>'+
       '</td>'+
-      '<td style="padding:7px 6px;font-size:12px;color:#374151">'+( u.fn||'—')+'</td>'+
+      '<td style="padding:7px 6px;font-size:12px;color:#374151">'+(u.fn||'—')+'</td>'+
       '<td style="padding:7px 6px">'+filBadge+'</td>'+
       '<td style="padding:7px 6px">'+
         '<span style="font-size:11px;font-weight:700;color:'+motivo.color+'" title="'+motivo.note.replace(/'/g,"&#39;")+'">'+motivo.icon+' '+motivo.label+'</span>'+
@@ -4705,13 +4707,9 @@ function renderListaUsers() {
       '<td style="padding:7px 6px;text-align:right">'+volMondCell+'</td>'+
       '<td style="padding:7px 6px;font-size:12px;color:#374151">'+(u.dr?u.dr.slice(0,10):'—')+'</td>'+
       '<td style="padding:7px 6px;min-width:110px">'+opCell+'</td>'+
-      '<td style="padding:7px 6px"><span style="'+esitoStyle+';font-size:11px;padding:2px 8px;border-radius:99px;white-space:nowrap">'+(esito||'—')+'</span></td>'+
-      '<td style="padding:7px 6px;min-width:130px">'+
-        '<input type="text" value="'+nota.replace(/"/g,'&quot;')+'" placeholder="note..." '+
-          'onblur="saveNote(\''+u.u+'\',\''+_listaAttivaId+'\',this.value)" '+
-          'style="width:100%;padding:4px 6px;border:1px solid #E5E7EB;border-radius:5px;font-size:11px;color:#374151">'+
-      '</td>'+
-      '<td style="padding:7px 4px;text-align:center">'+campIcon+'</td>'+
+      '<td style="padding:7px 6px" onclick="event.stopPropagation()">'+esSelect+'</td>'+
+      '<td style="padding:7px 6px;min-width:130px" onclick="event.stopPropagation()">'+noteInp+'</td>'+
+      '<td style="padding:7px 4px;text-align:center" onclick="event.stopPropagation()">'+richBtn+'</td>'+
     '</tr>';
   }).join('');
 
@@ -4732,7 +4730,7 @@ function renderListaUsers() {
         '<th style="padding:9px 6px;font-size:10px;font-weight:700">DATA REG.</th>'+
         '<th style="padding:9px 6px;font-size:10px;font-weight:700">OPERATORE</th>'+
         '<th style="padding:9px 6px;font-size:10px;font-weight:700">ESITO</th>'+
-        '<th style="padding:9px 6px;font-size:10px;font-weight:700;min-width:130px">NOTE</th>'+
+        '<th style="padding:9px 6px;font-size:10px;font-weight:700">NOTE</th>'+
         '<th style="padding:9px 6px;font-size:10px;font-weight:700;text-align:center">🔔</th>'+
       '</tr></thead>'+
       '<tbody>'+rows+'</tbody>'+
@@ -4740,25 +4738,6 @@ function renderListaUsers() {
 
   const btn = document.getElementById('lista-load-more');
   if (btn) btn.style.display = visible.length < _listaAllResults.length ? '' : 'none';
-}
-
-function saveNote(uname, listaId, val) {
-  var ul = uname.toLowerCase();
-  if (!callState[ul]) callState[ul] = {};
-  if (!callState[ul].promos) callState[ul].promos = {};
-  if (!callState[ul].promos[listaId]) callState[ul].promos[listaId] = {};
-  callState[ul].promos[listaId].note = val;
-  fbSave();
-}
-
-function toggleCampanella(uname, listaId) {
-  var ul = uname.toLowerCase();
-  if (!callState[ul]) callState[ul] = {};
-  if (!callState[ul].promos) callState[ul].promos = {};
-  if (!callState[ul].promos[listaId]) callState[ul].promos[listaId] = {};
-  callState[ul].promos[listaId].campanella = !callState[ul].promos[listaId].campanella;
-  fbSave();
-  renderListaUsers();
 }
 
 function caricaAltri60() {
