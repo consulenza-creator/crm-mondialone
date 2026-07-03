@@ -2465,13 +2465,48 @@ function _dashStats(){
         <div style="font-size:14px;font-weight:700;color:#0F172A">📊 Analisi Indirette — Periodo Promo</div>
         <span style="font-size:11px;color:#6B7280;background:#F1F5F9;padding:3px 9px;border-radius:10px">${pLabel}</span>
       </div>
-      <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(120px,1fr));gap:10px;margin-bottom:16px">
-        ${[{l:'Utenti attivi',v:totU.toLocaleString('it-IT'),ic:'👥'},{l:'Vol. giocato',v:'€'+Math.round(totGioc).toLocaleString('it-IT'),ic:'💰'},{l:'Profitto casa',v:'€'+Math.round(totProf).toLocaleString('it-IT'),ic:'📈'},{l:'Ticket totali',v:totTk.toLocaleString('it-IT'),ic:'🎫'}].map(k=>`
-          <div style="background:#F8FAFC;border-radius:10px;padding:10px;text-align:center">
-            <div style="font-size:16px">${k.ic}</div>
-            <div style="font-size:16px;font-weight:700;color:#0F172A;margin:2px 0">${k.v}</div>
-            <div style="font-size:10px;color:#94A3B8">${k.l}</div>
-          </div>`).join('')}
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:16px">
+        <!-- Sport Totale -->
+        <div style="background:#EFF6FF;border-radius:12px;padding:14px 16px;border:1px solid #BFDBFE">
+          <div style="font-size:11px;font-weight:700;color:#2563EB;text-transform:uppercase;letter-spacing:.5px;margin-bottom:10px">⚽ Sport Totale — periodo promo</div>
+          <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px">
+            ${[{l:'Utenti attivi',v:totU.toLocaleString('it-IT')},{l:'Vol. giocato',v:'€'+Math.round(totGioc).toLocaleString('it-IT')},{l:'Ticket',v:totTk.toLocaleString('it-IT')},{l:'Profitto casa',v:'€'+Math.round(totProf).toLocaleString('it-IT')}].map(k=>`
+              <div style="background:#fff;border-radius:8px;padding:8px 10px">
+                <div style="font-size:15px;font-weight:800;color:#0F172A">${k.v}</div>
+                <div style="font-size:10px;color:#64748B;margin-top:1px">${k.l}</div>
+              </div>`).join('')}
+          </div>
+        </div>
+        <!-- Mondialone Promo -->
+        <div style="background:#EAFBF1;border-radius:12px;padding:14px 16px;border:1px solid #6EE7B7">
+          ${(()=>{
+            const totali=ta.totali||{};
+            const volMond=totali.vol_mond||0;
+            const tkMond=totali.tk_mond||0;
+            const qualif=typeof QUALIFICATI!=='undefined'?QUALIFICATI.length:0;
+            const conv=typeof CONVERTITI!=='undefined'?CONVERTITI.length:0;
+            const convPct=qualif>0?Math.round(conv/qualif*100):0;
+            return `<div style="font-size:11px;font-weight:700;color:#00C853;text-transform:uppercase;letter-spacing:.5px;margin-bottom:10px">🏆 Mondialone — promo attiva</div>
+            <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px">
+              <div style="background:#fff;border-radius:8px;padding:8px 10px">
+                <div style="font-size:15px;font-weight:800;color:#00C853">${qualif.toLocaleString('it-IT')}</div>
+                <div style="font-size:10px;color:#64748B;margin-top:1px">Qualificati iscritti</div>
+              </div>
+              <div style="background:#fff;border-radius:8px;padding:8px 10px">
+                <div style="font-size:15px;font-weight:800;color:#00C853">${conv.toLocaleString('it-IT')} <span style="font-size:11px;color:#64748B">(${convPct}%)</span></div>
+                <div style="font-size:10px;color:#64748B;margin-top:1px">Hanno giocato almeno 1×</div>
+              </div>
+              <div style="background:#fff;border-radius:8px;padding:8px 10px">
+                <div style="font-size:15px;font-weight:800;color:#0F172A">€${Math.round(volMond).toLocaleString('it-IT')}</div>
+                <div style="font-size:10px;color:#64748B;margin-top:1px">Vol. giocato promo</div>
+              </div>
+              <div style="background:#fff;border-radius:8px;padding:8px 10px">
+                <div style="font-size:15px;font-weight:800;color:#0F172A">${tkMond.toLocaleString('it-IT')}</div>
+                <div style="font-size:10px;color:#64748B;margin-top:1px">Ticket promo</div>
+              </div>
+            </div>`;
+          })()}
+        </div>
       </div>
       ${daily.length?`<div style="margin-bottom:14px">${dailyChart}</div>`:''}
       <div style="overflow-x:auto">
@@ -2496,29 +2531,7 @@ function _dashStats(){
     </div>`;
   }
 
-  document.getElementById('dash-content').innerHTML=`
-    <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:14px">
-      <div style="background:#fff;border-radius:16px;padding:16px 20px;box-shadow:0 4px 16px rgba(15,23,42,0.07)">
-        <div style="font-size:12px;font-weight:700;color:#64748B;text-transform:uppercase;letter-spacing:.5px;margin-bottom:12px">Distribuzione categorie</div>
-        ${catBars}
-      </div>
-      <div style="background:#fff;border-radius:16px;padding:16px 20px;box-shadow:0 4px 16px rgba(15,23,42,0.07)">
-        <div style="font-size:12px;font-weight:700;color:#64748B;text-transform:uppercase;letter-spacing:.5px;margin-bottom:12px">Avanzamento chiamate</div>
-        ${callBars}
-        <div style="margin-top:12px;display:grid;grid-template-columns:1fr 1fr;gap:8px">
-          <div style="background:#F8FAFC;border-radius:10px;padding:10px;text-align:center">
-            <div style="font-size:22px;font-weight:800;color:#00C853">${att}</div>
-            <div style="font-size:10px;color:#64748B;margin-top:2px">Attivati oggi</div>
-          </div>
-          <div style="background:#F8FAFC;border-radius:10px;padding:10px;text-align:center">
-            <div style="font-size:22px;font-weight:800;color:#EF4444">${aRischio}</div>
-            <div style="font-size:10px;color:#64748B;margin-top:2px">A rischio</div>
-          </div>
-        </div>
-      </div>
-    </div>
-    ${tacHtml}
-  `;
+  document.getElementById('dash-content').innerHTML=`${tacHtml}`;
 }
 function renderMonitor(){
   const s=SUMMARY,all=getUsers(),n=all.length;
