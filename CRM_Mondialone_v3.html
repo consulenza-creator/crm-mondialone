@@ -1744,7 +1744,7 @@ function renderTable(){
   }
   function _rowHtml(u){
     const st=callState[u.u]||{},done=ESITI_CLOSE.has(st.esito),isPending=!!st.esito&&!done,isTop=u.r<=10;
-    const canAssign=currentUser.isAdmin||currentUser.isSupervisor||currentUser.isTeamLeader;
+    const canAssign=currentUser.isAdmin||currentUser.isTeamLeader; // supervisor: solo lettura
     const _visibleOps=currentUser.isTeamLeader?(currentUser.supervisedOperators||[]):ops;
     const opOpts='<option value="">—</option>'+_visibleOps.map(n=>`<option${st.op===n?' selected':''} value="${n}">${n}</option>`).join('');
     const esOpts=_esitoOpts(st.esito||'');
@@ -2403,16 +2403,27 @@ function _dashStats(){
     const daily=ta.daily||[];
     let dailyChart='';
     if(daily.length){
-      const maxV=Math.max(...daily.map(d=>d.vol_sport));
-      dailyChart=daily.map(d=>{
-        const pct=maxV>0?Math.round(d.vol_sport/maxV*100):0;
-        const lbl=d.data?d.data.slice(5):'';
-        const col=d.vol_sport>150000?'#00C853':d.vol_sport>100000?'#7BC46B':'#B8E0A8';
-        return `<div title="${lbl}: €${Math.round(d.vol_sport).toLocaleString('it-IT')}" style="flex:1;display:flex;flex-direction:column;align-items:flex-end;gap:2px">
-          <div style="width:100%;height:${pct}%;background:${col};border-radius:3px 3px 0 0;min-height:2px"></div>
-          <div style="font-size:8px;color:#9CA3AF;writing-mode:vertical-rl;transform:rotate(180deg)">${lbl}</div>
-        </div>`;
-      }).join('');
+      const maxV=Math.max(...daily.map(d=>d.vol_sport||0))||1;
+      // Grafico barre SVG-style: più leggibile e stabile cross-browser
+      const BAR_H=120, BAR_W=Math.max(8, Math.floor(580/daily.length)-3);
+      dailyChart=`<div style="position:relative;height:${BAR_H+30}px;display:flex;align-items:flex-end;gap:3px;padding-bottom:22px;overflow-x:auto">
+        ${daily.map(d=>{
+          const v=d.vol_sport||0;
+          const pct=Math.max(2,Math.round(v/maxV*BAR_H));
+          const lbl=(d.data||'').slice(5);
+          const col=v>150000?'#00C853':v>80000?'#34D399':v>30000?'#86EFAC':'#D1FAE5';
+          const tip=lbl+': €'+Math.round(v).toLocaleString('it-IT');
+          return `<div title="${tip}" style="display:flex;flex-direction:column;align-items:center;justify-content:flex-end;height:${BAR_H}px;min-width:${BAR_W}px;cursor:default">
+            <div style="width:100%;height:${pct}px;background:${col};border-radius:3px 3px 0 0;transition:opacity .2s" onmouseenter="this.style.opacity='.75'" onmouseleave="this.style.opacity='1'"></div>
+          </div>`;
+        }).join('')}
+      </div>
+      <div style="display:flex;gap:3px;margin-top:-20px;overflow-x:auto">
+        ${daily.map(d=>{
+          const lbl=(d.data||'').slice(5);
+          return `<div style="min-width:${BAR_W}px;font-size:9px;color:#9CA3AF;text-align:center;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${lbl}</div>`;
+        }).join('')}
+      </div>`;
     }
 
     const lbl=ta.labels||{};
@@ -2450,7 +2461,7 @@ function _dashStats(){
             <div style="font-size:10px;color:#94A3B8">${k.l}</div>
           </div>`).join('')}
       </div>
-      ${daily.length?`<div style="height:80px;display:flex;align-items:flex-end;gap:2px;margin-bottom:14px">${dailyChart}</div>`:''}
+      ${daily.length?`<div style="margin-bottom:14px">${dailyChart}</div>`:''}
       <div style="overflow-x:auto">
         <table style="width:100%;border-collapse:collapse;font-size:12px">
           <thead><tr style="background:#F8FAFC">
@@ -3268,10 +3279,11 @@ function renderOpList(){
   if(!ops.length){document.getElementById('op-list').innerHTML='<p style="color:#94A3B8;font-size:12px;padding:8px 0">Nessun operatore</p>';return;}
   const opNames=ops.map(o=>o.name);
   document.getElementById('op-list').innerHTML=ops.map((o,i)=>{
-    const isSup=o.role==='supervisor'||o.role==='team_leader';
+    const isSup=o.role==='supervisor';
+    const isTL=o.role==='team_leader';
     const hasTg=!!o.tg_chat_id;
-    const roleColor=isSup?'#7C3AED':'#2563EB';
-    const roleLabel=isSup?'Supervisor':'Operatore';
+    const roleColor=isTL?'#00C853':isSup?'#7C3AED':'#2563EB';
+    const roleLabel=isTL?'Team Leader':isSup?'Supervisor':'Operatore';
     const supervisedList=(o.supervisedOperators||[]).join(', ')||'tutti';
     return `
     <div style="border-radius:8px;overflow:hidden;margin-bottom:6px;border:1px solid #E5E7EB">
@@ -3297,8 +3309,8 @@ function renderOpList(){
           <option value="supervisor" ${o.role==='supervisor'?'selected':''}>🔑 Supervisor</option>
           <option value="team_leader" ${o.role==='team_leader'?'selected':''}>👥 Team Leader</option>
         </select>
-        <div id="edit-sup-section-${i}" style="display:${isSup?'block':'none'}">
-          <div style="font-size:10px;color:#7C3AED;font-weight:700;margin-bottom:6px">👥 OPERATORI DEL TEAM</div>
+        <div id="edit-sup-section-${i}" style="display:${(isSup||isTL)?'block':'none'}">
+          <div style="font-size:10px;color:${isTL?'#00C853':'#7C3AED'};font-weight:700;margin-bottom:6px">${isTL?'👥 OPERATORI DEL TEAM':'👁 OPERATORI MONITORATI'}</div>
           <div style="display:flex;flex-wrap:wrap;gap:4px;margin-bottom:8px" id="edit-sup-ops-${i}">
             ${opNames.filter(n=>n!==o.name).map(n=>`<label style="display:flex;align-items:center;gap:4px;background:${(o.supervisedOperators||[]).includes(n)?'#EDE9FE':'#F3F4F6'};border:1px solid ${(o.supervisedOperators||[]).includes(n)?'#8B5CF6':'#E5E7EB'};border-radius:6px;padding:3px 8px;cursor:pointer;font-size:11px;font-weight:600;color:${(o.supervisedOperators||[]).includes(n)?'#7C3AED':'#374151'}"><input type="checkbox" value="${n}" ${(o.supervisedOperators||[]).includes(n)?'checked':''} style="display:none" onchange="this.closest('label').style.background=this.checked?'#EDE9FE':'#F3F4F6';this.closest('label').style.borderColor=this.checked?'#8B5CF6':'#E5E7EB';this.closest('label').style.color=this.checked?'#7C3AED':'#374151'">${n}</label>`).join('')}
           </div>
@@ -3328,7 +3340,9 @@ function renderOpList(){
 function toggleSupFields(i){
   const role=document.getElementById('edit-role-'+i).value;
   const sec=document.getElementById('edit-sup-section-'+i);
-  if(sec)sec.style.display=(role==='supervisor'||role==='team_leader')?'block':'none';
+  if(sec){sec.style.display=(role==='supervisor'||role==='team_leader')?'block':'none';
+    const lbl=sec.querySelector('[data-sup-label]');
+    if(lbl)lbl.textContent=role==='team_leader'?'👥 OPERATORI DEL TEAM':'👁 OPERATORI MONITORATI';}
 }
 function editOp(i){
   // Toggle edit panel
