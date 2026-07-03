@@ -815,20 +815,20 @@ Più è alta, più il giocatore usa combinazioni.">%Multi</th>
         <div style="margin-bottom:10px">
           <div style="font-size:11px;color:#6B7280;margin-bottom:5px">TENDENZE (vuoto = tutte)</div>
           <div style="display:flex;flex-wrap:wrap;gap:8px">
-            <label style="display:flex;align-items:center;gap:4px;font-size:12px;cursor:pointer"><input type="checkbox" class="lf-trend" value="IN CRESCITA"> 📈 Crescita</label>
-            <label style="display:flex;align-items:center;gap:4px;font-size:12px;cursor:pointer"><input type="checkbox" class="lf-trend" value="RIENTRATO"> 🔄 Rientrato</label>
-            <label style="display:flex;align-items:center;gap:4px;font-size:12px;cursor:pointer"><input type="checkbox" class="lf-trend" value="STABILE"> ↔️ Stabile</label>
-            <label style="display:flex;align-items:center;gap:4px;font-size:12px;cursor:pointer"><input type="checkbox" class="lf-trend" value="IN CALO"> 📉 In calo</label>
-            <label style="display:flex;align-items:center;gap:4px;font-size:12px;cursor:pointer"><input type="checkbox" class="lf-trend" value="SPARITO"> 💤 Sparito</label>
+            <label style="display:flex;align-items:center;gap:4px;font-size:12px;cursor:pointer"><input type="checkbox" class="lf-trend" value="IN CRESCITA" onchange="anteprimaLista()"> 📈 Crescita</label>
+            <label style="display:flex;align-items:center;gap:4px;font-size:12px;cursor:pointer"><input type="checkbox" class="lf-trend" value="RIENTRATO" onchange="anteprimaLista()"> 🔄 Rientrato</label>
+            <label style="display:flex;align-items:center;gap:4px;font-size:12px;cursor:pointer"><input type="checkbox" class="lf-trend" value="STABILE" onchange="anteprimaLista()"> ↔️ Stabile</label>
+            <label style="display:flex;align-items:center;gap:4px;font-size:12px;cursor:pointer"><input type="checkbox" class="lf-trend" value="IN CALO" onchange="anteprimaLista()"> 📉 In calo</label>
+            <label style="display:flex;align-items:center;gap:4px;font-size:12px;cursor:pointer"><input type="checkbox" class="lf-trend" value="SPARITO" onchange="anteprimaLista()"> 💤 Sparito</label>
           </div>
         </div>
 
         <div style="margin-bottom:10px">
           <div style="font-size:11px;color:#6B7280;margin-bottom:5px">FILIERE (vuoto = tutte)</div>
           <div style="display:flex;flex-wrap:wrap;gap:8px">
-            <label style="display:flex;align-items:center;gap:4px;font-size:12px;cursor:pointer"><input type="checkbox" class="lf-fil" value="PassionGroup"> PassionGroup</label>
-            <label style="display:flex;align-items:center;gap:4px;font-size:12px;cursor:pointer"><input type="checkbox" class="lf-fil" value="Microgame"> Microgame</label>
-            <label style="display:flex;align-items:center;gap:4px;font-size:12px;cursor:pointer"><input type="checkbox" class="lf-fil" value="FilieraOnline"> FilieraOnline</label>
+            <label style="display:flex;align-items:center;gap:4px;font-size:12px;cursor:pointer"><input type="checkbox" class="lf-fil" value="PassionGroup" onchange="anteprimaLista()"> PassionGroup</label>
+            <label style="display:flex;align-items:center;gap:4px;font-size:12px;cursor:pointer"><input type="checkbox" class="lf-fil" value="Microgame" onchange="anteprimaLista()"> Microgame</label>
+            <label style="display:flex;align-items:center;gap:4px;font-size:12px;cursor:pointer"><input type="checkbox" class="lf-fil" value="FilieraOnline" onchange="anteprimaLista()"> FilieraOnline</label>
           </div>
         </div>
 
@@ -862,6 +862,10 @@ Più è alta, più il giocatore usa combinazioni.">%Multi</th>
           <div>
             <div style="font-size:11px;color:#6B7280;margin-bottom:3px">Tenure (anzianità)</div>
             <input id="lf-p-tenure" type="number" step="0.05" min="0" max="1" value="0.15" style="width:100%;padding:6px 8px;border:1px solid #BFDBFE;border-radius:5px;font-size:13px">
+          </div>
+          <div>
+            <div style="font-size:11px;color:#6B7280;margin-bottom:3px">% Multipla</div>
+            <input id="lf-p-multi" type="number" step="0.05" min="0" max="1" value="0.0" style="width:100%;padding:6px 8px;border:1px solid #BFDBFE;border-radius:5px;font-size:13px">
           </div>
         </div>
       </div>
@@ -4263,6 +4267,7 @@ function _getListaConfig() {
     pesoVol:    parseFloat(document.getElementById('lf-p-vol').value)     || 0.25,
     pesoTrend:  parseFloat(document.getElementById('lf-p-trend').value)   || 0.25,
     pesoTenure: parseFloat(document.getElementById('lf-p-tenure').value)  || 0.15,
+    pesoMulti:  parseFloat(document.getElementById('lf-p-multi')  ? document.getElementById('lf-p-multi').value  : 0) || 0,
   };
 }
 
@@ -4272,7 +4277,7 @@ function runPromoEngine(config) {
     stake90Min=0, volStorMin=0, tenureMin=0, ultTicketMaxGg=0,
     tendenze=[], filiere=[], escludiAuto=true, escludiSegn=true,
     escludiCls=['LIMIT','MONITORING'],
-    pesoS90=0.35, pesoVol=0.25, pesoTrend=0.25, pesoTenure=0.15
+    pesoS90=0.35, pesoVol=0.25, pesoTrend=0.25, pesoTenure=0.15, pesoMulti=0
   } = config;
   const oggi = new Date();
   const results = [];
@@ -4303,7 +4308,8 @@ function runPromoEngine(config) {
     const tMap   = {'IN CRESCITA':1,'RIENTRATO':0.8,'STABILE':0.6,'IN CALO':0.35,'SPARITO':0.1};
     const ntnd   = tMap[u.t] || 0.5;
     const ntgg   = Math.min(1, (u.tgg||0) / 365);
-    const score  = ns90*pesoS90 + nvol*pesoVol + ntnd*pesoTrend + ntgg*pesoTenure;
+    const nMulti = Math.min(1, (u.pm||0) / 100);
+    const score  = ns90*pesoS90 + nvol*pesoVol + ntnd*pesoTrend + ntgg*pesoTenure + nMulti*pesoMulti;
     results.push({...u, _score:score, h_vol:hvol, h_giorni:hs.h_giorni||0, h_pref:hs.h_pref||''});
   }
   return results.sort((a,b) => b._score - a._score);
@@ -4772,35 +4778,35 @@ const _PRESETS = {
     nome:'Gestione Utenti', obiettivo:'gestione',
     stake90:0, volstor:100, tenure:30, ultgg:0,
     tendenze:[], filiere:[],
-    pesoS90:0.3, pesoVol:0.3, pesoTrend:0.2, pesoTenure:0.2
+    pesoS90:0.3, pesoVol:0.3, pesoTrend:0.2, pesoTenure:0.2, pesoMulti:0
   },
   promo_push: {
     nome:'Promo Push', obiettivo:'promo_push',
     stake90:20, volstor:50, tenure:0, ultgg:30,
     tendenze:['IN CRESCITA','STABILE','IN CALO','RIENTRATO'],
     filiere:[],
-    pesoS90:0.45, pesoVol:0.2, pesoTrend:0.25, pesoTenure:0.1
+    pesoS90:0.45, pesoVol:0.2, pesoTrend:0.25, pesoTenure:0.1, pesoMulti:0
   },
   retention: {
     nome:'Retention', obiettivo:'retention',
     stake90:100, volstor:500, tenure:60, ultgg:45,
     tendenze:['IN CALO'],
     filiere:[],
-    pesoS90:0.4, pesoVol:0.3, pesoTrend:0.2, pesoTenure:0.1
+    pesoS90:0.4, pesoVol:0.3, pesoTrend:0.2, pesoTenure:0.1, pesoMulti:0
   },
   riattivazione: {
     nome:'Riattivazione', obiettivo:'riattivazione',
     stake90:0, volstor:200, tenure:0, ultgg:0,
     tendenze:['SPARITO'],
     filiere:[],
-    pesoS90:0.1, pesoVol:0.5, pesoTrend:0.1, pesoTenure:0.3
+    pesoS90:0.1, pesoVol:0.5, pesoTrend:0.1, pesoTenure:0.3, pesoMulti:0
   },
   monitoraggio: {
     nome:'Monitoraggio VIP', obiettivo:'monitoraggio',
     stake90:500, volstor:2000, tenure:90, ultgg:0,
     tendenze:[],
     filiere:[],
-    pesoS90:0.35, pesoVol:0.35, pesoTrend:0.15, pesoTenure:0.15
+    pesoS90:0.35, pesoVol:0.35, pesoTrend:0.15, pesoTenure:0.15, pesoMulti:0
   }
 };
 function applyPreset(key) {
@@ -4815,6 +4821,7 @@ function applyPreset(key) {
   document.getElementById('lf-p-vol').value = p.pesoVol;
   document.getElementById('lf-p-trend').value = p.pesoTrend;
   document.getElementById('lf-p-tenure').value = p.pesoTenure;
+  const _pm = document.getElementById('lf-p-multi'); if (_pm) _pm.value = p.pesoMulti || 0;
   // Tendenze
   document.querySelectorAll('.lf-trend').forEach(cb => {
     cb.checked = p.tendenze.length === 0 || p.tendenze.includes(cb.value);
