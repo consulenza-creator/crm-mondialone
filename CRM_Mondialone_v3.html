@@ -1563,41 +1563,37 @@ function switchTab(t){
 
 // ── OPERATORE CHIAMATE: lista-based ──
 function renderChiamateOp() {
-  const pane = document.getElementById('op-chiamate-pane');
+  var pane = document.getElementById('op-chiamate-pane');
   if (!pane) return;
 
   if (!_chiamateListaAttiva) {
-    // ── STEP 1: mostra le liste disponibili ──
-    const tuttiPromos = Object.values(_promoList).filter(Boolean);
-    const attive = tuttiPromos.filter(p => p.attiva);
-
+    var tuttiPromos = Object.values(_promoList).filter(Boolean);
+    var attive = tuttiPromos.filter(function(p){ return p.attiva; });
     if (!attive.length) {
-      pane.innerHTML = '<div style="text-align:center;padding:60px 20px;color:#6B7280"><div style="font-size:32px;margin-bottom:12px">📋</div><div style="font-weight:600;font-size:15px">Nessuna lista attiva</div><div style="font-size:13px;margin-top:6px">Chiedi all'admin di creare e attivare una lista.</div></div>';
+      pane.innerHTML = '<div style="text-align:center;padding:60px 20px;color:#6B7280"><div style="font-size:32px;margin-bottom:12px">&#128203;</div><div style="font-weight:600;font-size:15px">Nessuna lista attiva</div><div style="font-size:13px;margin-top:6px">Chiedi all\'admin di creare e attivare una lista.</div></div>';
       return;
     }
-
-    const cards = attive.map(function(p) {
-      const col = _OBJ_COLOR[p.obiettivo] || '#2563EB';
-      const icon = _OBJ_ICON[p.obiettivo] || '📋';
-      const tot = p.totale || 0;
-      // Conta quanti utenti di questa lista hanno un esito dall'operatore corrente
-      const myName = currentUser && currentUser.name;
-      const lavorati = (p.listaCompleta||[]).filter(function(u){
-        const st = callState[u] || {};
+    var myName = currentUser && currentUser.name;
+    var cards = attive.map(function(p) {
+      var col = _OBJ_COLOR[p.obiettivo] || '#2563EB';
+      var icon = _OBJ_ICON[p.obiettivo] || '&#128203;';
+      var tot = p.totale || 0;
+      var lavorati = (p.listaCompleta||[]).filter(function(u){
+        var st = callState[u] || {};
         return st.esito && st.op === myName;
       }).length;
-      const pct = tot ? Math.round(lavorati / tot * 100) : 0;
-      return '<div onclick="apriListaChiamate('' + p.id + '')" style="background:#fff;border:2px solid ' + col + '44;border-radius:14px;padding:18px 20px;margin-bottom:12px;cursor:pointer;transition:.15s" onmouseenter="this.style.borderColor='' + col + ''" onmouseleave="this.style.borderColor='' + col + '44'">' +
+      var pct = tot ? Math.round(lavorati / tot * 100) : 0;
+      var badge = _campagnaBadge(p.obiettivo, 'sm');
+      return '<div onclick="apriListaChiamate(\'' + p.id + '\')" style="background:#fff;border:2px solid ' + col + '44;border-radius:14px;padding:18px 20px;margin-bottom:12px;cursor:pointer">' +
         '<div style="display:flex;align-items:center;gap:12px">' +
-          '<div style="width:44px;height:44px;border-radius:12px;background:' + col + '22;display:flex;align-items:center;justify-content:center;font-size:22px;flex-shrink:0">' + icon + '</div>' +
+          '<div style="width:44px;height:44px;border-radius:12px;background:' + col + '22;display:flex;align-items:center;justify-content:center;font-size:22px">' + icon + '</div>' +
           '<div style="flex:1">' +
             '<div style="display:flex;align-items:center;gap:8px;margin-bottom:2px">' +
-              '<span style="font-weight:700;font-size:15px;color:#111">' + p.nome + '</span>' +
-              _campagnaBadge(p.obiettivo, 'sm') +
+              '<span style="font-weight:700;font-size:15px;color:#111">' + (p.nome||'—') + '</span>' + badge +
             '</div>' +
-            '<div style="font-size:12px;color:#9CA3AF">' + tot.toLocaleString('it-IT') + ' utenti · ' + lavorati + ' lavorati da te</div>' +
+            '<div style="font-size:12px;color:#9CA3AF">' + tot.toLocaleString('it-IT') + ' utenti &middot; ' + lavorati + ' lavorati da te</div>' +
           '</div>' +
-          '<div style="text-align:right;flex-shrink:0">' +
+          '<div style="text-align:right">' +
             '<div style="font-size:20px;font-weight:800;color:' + col + '">' + pct + '%</div>' +
             '<div style="font-size:10px;color:#9CA3AF">completato</div>' +
           '</div>' +
@@ -1607,73 +1603,63 @@ function renderChiamateOp() {
         '</div>' +
       '</div>';
     }).join('');
-
-    pane.innerHTML = '<div style="padding:4px 0 16px"><div style="font-size:17px;font-weight:800;color:#111;margin-bottom:4px">📋 Le tue liste di lavoro</div><div style="font-size:13px;color:#6B7280;margin-bottom:16px">Seleziona una lista per iniziare le chiamate</div>' + cards + '</div>';
+    pane.innerHTML = '<div style="padding:4px 0 16px">' +
+      '<div style="font-size:17px;font-weight:800;color:#111;margin-bottom:4px">&#128203; Le tue liste di lavoro</div>' +
+      '<div style="font-size:13px;color:#6B7280;margin-bottom:16px">Seleziona una lista per iniziare le chiamate</div>' +
+      cards + '</div>';
     return;
   }
 
-  // ── STEP 2: utenti della lista selezionata ──
-  const promo = _promoList[_chiamateListaAttiva];
+  // Lista selezionata → mostra utenti
+  var promo = _promoList[_chiamateListaAttiva];
   if (!promo) { _chiamateListaAttiva = null; renderChiamateOp(); return; }
+  var col = _OBJ_COLOR[promo.obiettivo] || '#2563EB';
 
-  const col = _OBJ_COLOR[promo.obiettivo] || '#2563EB';
-  const utenti = (promo.listaCompleta || []).map(function(uname) {
-    const mu = masterUsers.find(function(x){ return x.u.toLowerCase() === uname.toLowerCase(); }) || {u: uname};
-    const hs = (STORICO_SPORT && STORICO_SPORT[uname.toLowerCase()]) || {};
-    const qd = (QUALIFICATI||[]).find(function(q){ return q.u.toLowerCase() === uname.toLowerCase(); }) || {};
-    const rzRow = (typeof reportzData !== 'undefined' && reportzData) ? (reportzData[uname.toLowerCase()]||{}) : {};
-    return {
-      u: uname,
-      fn: mu.fn || '—',
-      f: mu.f || '—',
-      t: mu.t || '',
-      h_vol: hs.h_vol || 0,
-      pm: hs.h_pm || mu.pm || 0,
-      vm: qd.vq || mu.vm || 0,
-      s90: mu.s90 || 0,
-      dr: mu.dr || ''
-    };
+  var utenti = (promo.listaCompleta || []).map(function(uname) {
+    var mu = masterUsers.find(function(x){ return x.u.toLowerCase() === uname.toLowerCase(); }) || {u: uname};
+    var hs = (STORICO_SPORT && STORICO_SPORT[uname.toLowerCase()]) || {};
+    var qd = (QUALIFICATI||[]).find(function(q){ return q.u.toLowerCase() === uname.toLowerCase(); }) || {};
+    return { u:uname, fn:mu.fn||'—', f:mu.f||'—', t:mu.t||'', h_vol:hs.h_vol||0, pm:hs.h_pm||mu.pm||0, vm:qd.vq||mu.vm||0, s90:mu.s90||0 };
   });
 
-  const myName = currentUser && currentUser.name;
-  const daLavorare = utenti.filter(function(u){ const st=callState[u.u]||{}; return !st.esito; });
-  const lavorati = utenti.filter(function(u){ const st=callState[u.u]||{}; return !!st.esito; });
+  var daLavorare = utenti.filter(function(u){ return !(callState[u.u]||{}).esito; });
+  var lavorati2 = utenti.filter(function(u){ return !!(callState[u.u]||{}).esito; });
+  var totDone = lavorati2.filter(function(u){ return ESITI_CLOSE.has((callState[u.u]||{}).esito); }).length;
 
-  const rows = utenti.map(function(u) {
-    const st = callState[u.u] || {};
-    const done = ESITI_CLOSE.has(st.esito);
-    const hasBell = !!st.richiama;
-    const rowBg = done ? '#F0FDF4' : (st.esito ? '#FFFBEB' : '#fff');
-    const trendCol = {'IN CRESCITA':'#059669','RIENTRATO':'#7C3AED','STABILE':'#2563EB','IN CALO':'#D97706','SPARITO':'#9CA3AF'}[u.t] || '#6B7280';
-    const fmtEur = function(v){ return v > 0 ? '€' + Math.round(v).toLocaleString('it-IT') : '—'; };
-    const fmtPct = function(v){ return v > 0 ? Math.round(v) + '%' : '—'; };
-    return '<tr style="background:' + rowBg + ';border-bottom:1px solid #F1F5F9" onclick="if(event.target.tagName!==\'SELECT\'&&event.target.tagName!==\'INPUT\'&&event.target.tagName!==\'BUTTON\')openScheda(\'' + u.u + \'\')">' +
-      '<td style="padding:8px 10px;font-weight:700;font-size:12px;color:#111;white-space:nowrap">' + u.u + '</td>' +
+  function fmtE(v){ return v>0?'&euro;'+Math.round(v).toLocaleString('it-IT'):'&mdash;'; }
+  function fmtP(v){ return v>0?Math.round(v)+'%':'&mdash;'; }
+  var TCOL = {'IN CRESCITA':'#059669','RIENTRATO':'#7C3AED','STABILE':'#2563EB','IN CALO':'#D97706','SPARITO':'#9CA3AF'};
+
+  var rows = utenti.map(function(u) {
+    var st = callState[u.u] || {};
+    var done = ESITI_CLOSE.has(st.esito);
+    var rowBg = done ? '#F0FDF4' : (st.esito ? '#FFFBEB' : '#fff');
+    var tc = TCOL[u.t] || '#6B7280';
+    var bell = st.richiama ? '#F97316' : '#F1F5F9';
+    var esc = u.u.replace(/'/g, "\\'");
+    return '<tr style="background:' + rowBg + ';border-bottom:1px solid #F1F5F9;cursor:pointer" onclick="if(event.target.tagName!==\'SELECT\'&&event.target.tagName!==\'INPUT\'&&event.target.tagName!==\'BUTTON\')openScheda(\'' + esc + '\')">' +
+      '<td style="padding:8px 10px;font-weight:700;font-size:12px;white-space:nowrap">' + u.u + '</td>' +
       '<td style="padding:8px 10px;font-size:11px;color:#6B7280;white-space:nowrap">' + u.fn + '</td>' +
       '<td style="padding:8px 10px"><span style="background:#E5E7EB;color:#374151;font-size:10px;font-weight:600;border-radius:4px;padding:2px 6px">' + u.f + '</span></td>' +
-      '<td style="padding:8px 10px"><span style="background:' + trendCol + '22;color:' + trendCol + ';font-size:10px;font-weight:700;border-radius:4px;padding:2px 6px">' + (u.t||'—') + '</span></td>' +
-      '<td style="padding:8px 10px;text-align:right;font-size:12px;font-weight:600">' + fmtEur(u.h_vol) + '</td>' +
-      '<td style="padding:8px 10px;text-align:right;font-size:12px">' + fmtEur(u.s90) + '</td>' +
-      '<td style="padding:8px 10px;text-align:right;font-size:12px">' + fmtPct(u.pm) + '</td>' +
-      '<td style="padding:8px 10px;text-align:right;font-size:12px">' + fmtEur(u.vm) + '</td>' +
-      '<td style="padding:8px 10px;min-width:140px"><select class="esito-sel" onchange="setEsito(\'' + u.u + '\',this.value);renderChiamateOp()" style="width:100%;border:1px solid #D1D5DB;border-radius:6px;padding:3px 5px;font-size:11px;font-weight:600">' + _esitoOpts(st.esito||'')+'</select></td>' +
-      '<td style="padding:8px 10px;min-width:130px"><input type="text" value="' + (st.note||'')+'" onchange="setNote(\'' + u.u + '\',this.value)" placeholder="nota..." style="width:100%;border:1px solid #D1D5DB;border-radius:5px;padding:3px 6px;font-size:11px"></td>' +
-      '<td style="padding:8px 10px;text-align:center"><button onclick="openReminderModal(\'' + u.u + \'\')" style="background:' + (hasBell?'#F97316':'#F1F5F9') + ';border:none;border-radius:6px;padding:4px 7px;cursor:pointer;font-size:13px" title="Imposta reminder">🔔</button></td>' +
+      '<td style="padding:8px 10px"><span style="background:' + tc + '22;color:' + tc + ';font-size:10px;font-weight:700;border-radius:4px;padding:2px 6px">' + (u.t||'—') + '</span></td>' +
+      '<td style="padding:8px 10px;text-align:right;font-size:12px;font-weight:600">' + fmtE(u.h_vol) + '</td>' +
+      '<td style="padding:8px 10px;text-align:right;font-size:12px">' + fmtE(u.s90) + '</td>' +
+      '<td style="padding:8px 10px;text-align:right;font-size:12px">' + fmtP(u.pm) + '</td>' +
+      '<td style="padding:8px 10px;text-align:right;font-size:12px">' + fmtE(u.vm) + '</td>' +
+      '<td style="padding:8px 10px;min-width:140px"><select class="esito-sel" onchange="setEsito(\'' + esc + '\',this.value);renderChiamateOp()" style="width:100%;border:1px solid #D1D5DB;border-radius:6px;padding:3px 5px;font-size:11px;font-weight:600">' + _esitoOpts(st.esito||'') + '</select></td>' +
+      '<td style="padding:8px 10px;min-width:130px"><input type="text" value="' + (st.note||'').replace(/"/g,'&quot;') + '" onchange="setNote(\'' + esc + '\',this.value)" placeholder="nota..." style="width:100%;border:1px solid #D1D5DB;border-radius:5px;padding:3px 6px;font-size:11px"></td>' +
+      '<td style="padding:8px 10px;text-align:center"><button onclick="openReminderModal(\'' + esc + '\')" style="background:' + bell + ';border:none;border-radius:6px;padding:4px 7px;cursor:pointer;font-size:13px">&#128276;</button></td>' +
     '</tr>';
   }).join('');
 
-  const totaleTot = utenti.length;
-  const totDone = lavorati.filter(function(u){ return ESITI_CLOSE.has((callState[u.u]||{}).esito); }).length;
-  const totLav = lavorati.length;
-
+  var headerBadge = _campagnaBadge(promo.obiettivo, 'md');
   pane.innerHTML =
-    '<div style="display:flex;align-items:center;gap:10px;margin-bottom:14px">' +
-      '<button onclick="_chiamateListaAttiva=null;renderChiamateOp()" style="background:#F1F5F9;border:none;border-radius:8px;padding:6px 12px;font-size:13px;font-weight:600;cursor:pointer;color:#374151">← Liste</button>' +
-      '<div style="font-size:16px;font-weight:800;color:#111">' + promo.nome + '</div>' +
-      _campagnaBadge(promo.obiettivo, 'md') +
-      '<div style="margin-left:auto;display:flex;gap:8px;font-size:12px;color:#6B7280">' +
+    '<div style="display:flex;align-items:center;gap:10px;margin-bottom:14px;flex-wrap:wrap">' +
+      '<button onclick="_chiamateListaAttiva=null;renderChiamateOp()" style="background:#F1F5F9;border:none;border-radius:8px;padding:6px 12px;font-size:13px;font-weight:600;cursor:pointer;color:#374151">&larr; Liste</button>' +
+      '<div style="font-size:16px;font-weight:800;color:#111">' + (promo.nome||'—') + '</div>' + headerBadge +
+      '<div style="margin-left:auto;display:flex;gap:6px;font-size:12px">' +
         '<span style="background:#F0FDF4;color:#059669;border-radius:6px;padding:3px 10px;font-weight:700">' + totDone + ' chiuse</span>' +
-        '<span style="background:#FFFBEB;color:#D97706;border-radius:6px;padding:3px 10px;font-weight:700">' + (totLav - totDone) + ' in lav.</span>' +
+        '<span style="background:#FFFBEB;color:#D97706;border-radius:6px;padding:3px 10px;font-weight:700">' + (lavorati2.length - totDone) + ' in lav.</span>' +
         '<span style="background:#F1F5F9;color:#6B7280;border-radius:6px;padding:3px 10px;font-weight:700">' + daLavorare.length + ' da fare</span>' +
       '</div>' +
     '</div>' +
@@ -1690,7 +1676,7 @@ function renderChiamateOp() {
       '<th style="padding:8px 10px;text-align:right;font-size:11px;font-weight:700;color:#374151">Vol.Mond</th>' +
       '<th style="padding:8px 10px;text-align:left;font-size:11px;font-weight:700;color:#374151;min-width:140px">Esito</th>' +
       '<th style="padding:8px 10px;text-align:left;font-size:11px;font-weight:700;color:#374151;min-width:130px">Note</th>' +
-      '<th style="padding:8px 10px;text-align:center;font-size:11px;font-weight:700;color:#374151">🔔</th>' +
+      '<th style="padding:8px 10px;text-align:center;font-size:11px;font-weight:700;color:#374151">&#128276;</th>' +
     '</tr></thead>' +
     '<tbody>' + rows + '</tbody>' +
     '</table></div>';
