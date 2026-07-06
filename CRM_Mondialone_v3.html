@@ -1532,6 +1532,12 @@ function updateFnDimming(){
 // ── TABS ──
 function switchTab(t){
   activeTab=t;
+  // Se si esce da Chiamate, resetta stato lista e ripristina wrapper
+  if(t!=='oggi'){
+    _chiamateListaAttiva=null;
+    var _w=document.getElementById('oggi-top60-wrap'); if(_w) _w.style.display='';
+    var _op=document.getElementById('op-chiamate-pane'); if(_op){ _op.style.display='none'; _op.innerHTML=''; }
+  }
   ['oggi','tutti','conv','mie','qualif','dash','liste'].forEach(x=>{
     const tb=document.getElementById('tab-'+x); if(tb) tb.classList.toggle('active',x===t);
     const pn=document.getElementById('pane-'+x); if(pn) pn.style.display=x===t?'block':'none';
