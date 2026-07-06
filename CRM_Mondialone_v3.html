@@ -449,6 +449,7 @@ th[data-tip],[data-tip]{cursor:help}
   </div>
   <div class="main-content">
     <div id="pane-oggi">
+      <div id="oggi-top60-wrap">
       <div class="mattina-bar" id="mattina-bar" style="display:none">
         <span class="lbl">🌅 ASSEGNA MATTINA</span>
         <select id="mat-op"></select>
@@ -469,7 +470,7 @@ th[data-tip],[data-tip]{cursor:help}
         <button id="btn-only-unassigned" onclick="toggleOnlyUnassigned()" style="margin-left:auto;background:#0EA5E9;border:none;border-radius:6px;padding:3px 10px;font-size:11px;font-weight:700;color:#fff;cursor:pointer">👁 Solo da assegnare</button>
       </div>
       <div class="prog-strip" id="prog-strip"></div>
-      <div class="filter-bar">
+      <div id="filter-bar" class="filter-bar">
         <select id="flt-cat" onchange="applyFilters()"><option value="">Categorie</option><option>PROMO NON USATA</option><option>DA RECUPERARE</option><option>DA RIATTIVARE</option><option>COCCOLARE</option></select>
         <select id="flt-fil" onchange="applyFilters()"><option value="">Filiere</option></select>
         <select id="flt-fn" onchange="applyFilters()"><option value="">Partner</option></select>
@@ -482,7 +483,7 @@ th[data-tip],[data-tip]{cursor:help}
           <button class="btn btn-dark btn-sm" onclick="saveToLocal()">💾 Salva</button>
         </div>
       </div>
-      <div class="table-wrap">
+      <div id="table-wrap" class="table-wrap">
         <table id="main-table">
           <thead><tr>
             <th style="width:36px" data-tip="Posizione in classifica.
@@ -592,6 +593,7 @@ L'operatore riceve una notifica all'orario scelto.">📞</th>
       </div>
     </div>
 
+      </div><!-- /oggi-top60-wrap -->
       <!-- ═══ OPERATORE: LISTA CHIAMATE ═══ -->
       <div id="op-chiamate-pane" style="display:none;padding:16px"></div>
 
@@ -1550,9 +1552,7 @@ function switchTab(t){
   if(t==='qualif')renderQualif();
   if(t==='oggi'){
     // Tutti i ruoli → lista-picker (TOP60 eliminata)
-    ['mattina-bar','admin-assign-banner','prog-strip','filter-bar','table-wrap','m-card-list','pool-targeting-wrap'].forEach(function(id){
-      const el=document.getElementById(id); if(el) el.style.display='none';
-    });
+    var _w=document.getElementById('oggi-top60-wrap'); if(_w) _w.style.display='none';
     var _opPane=document.getElementById('op-chiamate-pane');
     if(_opPane) _opPane.style.display='';
     if(!masterReady) loadMaster().then(function(){ if(!Object.keys(_promoList).length) loadListePromo().then(renderChiamateOp); else renderChiamateOp(); });
@@ -1630,13 +1630,19 @@ function renderChiamateOp() {
   function fmtP(v){ return v>0?Math.round(v)+'%':'&mdash;'; }
   var TCOL = {'IN CRESCITA':'#059669','RIENTRATO':'#7C3AED','STABILE':'#2563EB','IN CALO':'#D97706','SPARITO':'#9CA3AF'};
 
+  var ops = cfg.operators.filter(function(o){ return o.active!==false; }).map(function(o){ return o.name; });
   var rows = utenti.map(function(u) {
     var st = callState[u.u] || {};
     var done = ESITI_CLOSE.has(st.esito);
     var rowBg = done ? '#F0FDF4' : (st.esito ? '#FFFBEB' : '#fff');
     var tc = TCOL[u.t] || '#6B7280';
     var bell = st.richiama ? '#F97316' : '#F1F5F9';
-    var esc = u.u.replace(/'/g, "\\'");
+    var esc = u.u.replace(/'/g, "\'");
+    var canAssign = currentUser && (currentUser.isAdmin || currentUser.isTeamLeader || currentUser.isSupervisor);
+    var opOpts = '<option value="">— Op —</option>' + ops.map(function(n){ return '<option' + (st.op===n?' selected':'') + ' value="' + n + '">' + n + '</option>'; }).join('');
+    var opCell = canAssign
+      ? '<select onchange="if(!callState[\''+esc+'\'])callState[\''+esc+'\']={};callState[\''+esc+'\'].op=this.value;saveState();" style="width:100%;border:1px solid #D1D5DB;border-radius:5px;padding:3px 5px;font-size:11px">' + opOpts + '</select>'
+      : '<span style="font-size:11px;color:#374151">' + (st.op||'—') + '</span>';
     return '<tr style="background:' + rowBg + ';border-bottom:1px solid #F1F5F9;cursor:pointer" onclick="if(event.target.tagName!==\'SELECT\'&&event.target.tagName!==\'INPUT\'&&event.target.tagName!==\'BUTTON\')openScheda(\'' + esc + '\')">' +
       '<td style="padding:8px 10px;font-weight:700;font-size:12px;white-space:nowrap">' + u.u + '</td>' +
       '<td style="padding:8px 10px;font-size:11px;color:#6B7280;white-space:nowrap">' + u.fn + '</td>' +
@@ -1646,6 +1652,7 @@ function renderChiamateOp() {
       '<td style="padding:8px 10px;text-align:right;font-size:12px">' + fmtE(u.s90) + '</td>' +
       '<td style="padding:8px 10px;text-align:right;font-size:12px">' + fmtP(u.pm) + '</td>' +
       '<td style="padding:8px 10px;text-align:right;font-size:12px">' + fmtE(u.vm) + '</td>' +
+      '<td style="padding:8px 10px;min-width:110px">' + opCell + '</td>' +
       '<td style="padding:8px 10px;min-width:140px"><select class="esito-sel" onchange="setEsito(\'' + esc + '\',this.value);renderChiamateOp()" style="width:100%;border:1px solid #D1D5DB;border-radius:6px;padding:3px 5px;font-size:11px;font-weight:600">' + _esitoOpts(st.esito||'') + '</select></td>' +
       '<td style="padding:8px 10px;min-width:130px"><input type="text" value="' + (st.note||'').replace(/"/g,'&quot;') + '" onchange="setNote(\'' + esc + '\',this.value)" placeholder="nota..." style="width:100%;border:1px solid #D1D5DB;border-radius:5px;padding:3px 6px;font-size:11px"></td>' +
       '<td style="padding:8px 10px;text-align:center"><button onclick="openReminderModal(\'' + esc + '\')" style="background:' + bell + ';border:none;border-radius:6px;padding:4px 7px;cursor:pointer;font-size:13px">&#128276;</button></td>' +
@@ -1674,6 +1681,7 @@ function renderChiamateOp() {
       '<th style="padding:8px 10px;text-align:right;font-size:11px;font-weight:700;color:#374151">Stake 90gg</th>' +
       '<th style="padding:8px 10px;text-align:right;font-size:11px;font-weight:700;color:#374151">%Multi</th>' +
       '<th style="padding:8px 10px;text-align:right;font-size:11px;font-weight:700;color:#374151">Vol.Mond</th>' +
+      '<th style="padding:8px 10px;text-align:left;font-size:11px;font-weight:700;color:#374151;min-width:110px">Operatore</th>' +
       '<th style="padding:8px 10px;text-align:left;font-size:11px;font-weight:700;color:#374151;min-width:140px">Esito</th>' +
       '<th style="padding:8px 10px;text-align:left;font-size:11px;font-weight:700;color:#374151;min-width:130px">Note</th>' +
       '<th style="padding:8px 10px;text-align:center;font-size:11px;font-weight:700;color:#374151">&#128276;</th>' +
