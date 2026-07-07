@@ -5147,4 +5147,21 @@ async function distribuisciEquo() {
     const key = uname.toLowerCase();
     if (callState[key] && callState[key].op) continue;
     let tries=0;
-    while (tries < allOps.length && cnts[allOps[opIdx%allOps.length].name] >= perOp) { opIdx++; trie
+    while (tries < allOps.length && cnts[allOps[opIdx%allOps.length].name] >= perOp) { opIdx++; tries++; }
+    if (tries >= allOps.length) break;
+    const opName = allOps[opIdx%allOps.length].name;
+    callState[key] = { ...(callState[key]||{}), op:opName, assignedAt:new Date().toISOString(), promoRef:_listaAttivaId, esito:(callState[key]||{}).esito||'' };
+    cnts[opName]++; opIdx++; total++;
+  }
+  if (!total) { toast('⚠️ Nessun utente da assegnare'); if(st)st.textContent=''; return; }
+  try {
+    if (typeof fbSave === 'function') await fbSave();
+    renderListaUsers();
+    const summary = allOps.filter(o=>cnts[o.name]>0).map(o=>o.name+': '+cnts[o.name]).join(' · ');
+    toast('✅ '+total+' distribuiti equamente');
+    if (st) st.innerHTML = '✅ <b>'+total+'</b> distribuiti · '+summary+'<br><small style="color:#059669">→ Visibili in Le Mie Chiamate</small>';
+  } catch(e) { toast('⚠️ Errore: '+e.message); if(st)st.textContent=''; }
+}
+</script>
+</body>
+</html>
