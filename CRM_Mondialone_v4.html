@@ -1304,6 +1304,12 @@ Più è alta, più il giocatore usa combinazioni.">%Multi</th>
             <div class="camp-pill sel" data-seg="tutti" onclick="selSeg(this)">Tutti</div>
             <div class="camp-pill" data-seg="attivo" onclick="selSeg(this)">Attivi (ultimi 30 gg)</div>
             <div class="camp-pill" data-seg="dormiente" onclick="selSeg(this)">Dormienti (30+ gg)</div>
+            <div class="camp-pill" data-seg="lista" onclick="selSeg(this)">📋 Lista...</div>
+          </div>
+          <div id="camp-lista-wrap" style="display:none;margin-top:8px">
+            <select class="camp-sel" id="cf-lista-id" onchange="_campSegSel=this.value||'lista'">
+              <option value="">— Scegli lista —</option>
+            </select>
           </div>
         </div>
         <div class="camp-group">
@@ -5517,6 +5523,21 @@ function selSeg(el){
   document.querySelectorAll('.camp-pill').forEach(p=>p.classList.remove('sel'));
   el.classList.add('sel');
   _campSegSel=el.dataset.seg;
+  var listaWrap=document.getElementById('camp-lista-wrap');
+  if(!listaWrap)return;
+  if(_campSegSel==='lista'){
+    listaWrap.style.display='';
+    var doFill=function(){
+      var attive=Object.values(_promoList).filter(p=>p&&p.attiva);
+      var sel=document.getElementById('cf-lista-id');
+      sel.innerHTML='<option value="">— Scegli lista —</option>'
+        +attive.map(p=>'<option value="lista:'+p.id+'">'+p.nome+' ('+((p.listaCompleta||[]).length)+' utenti)</option>').join('');
+    };
+    if(!Object.keys(_promoList).length) loadListePromo().then(doFill);
+    else doFill();
+  } else {
+    listaWrap.style.display='none';
+  }
 }
 
 function resetCampForm(){
@@ -5527,6 +5548,8 @@ function resetCampForm(){
   _campSegSel='tutti';
   document.querySelectorAll('.camp-pill').forEach(p=>p.classList.remove('sel'));
   var first=document.querySelector('.camp-pill');if(first)first.classList.add('sel');
+  var listaWrap=document.getElementById('camp-lista-wrap');if(listaWrap)listaWrap.style.display='none';
+  var listaId=document.getElementById('cf-lista-id');if(listaId)listaId.selectedIndex=0;
 }
 
 async function salvaCampagna(tipoInvio){
@@ -5534,6 +5557,7 @@ async function salvaCampagna(tipoInvio){
   var oggetto=document.getElementById('cf-oggetto').value.trim();
   var corpo  =document.getElementById('cf-corpo').value.trim();
   if(!nome||!oggetto||!corpo){toast('⚠️ Compila nome, oggetto e corpo email');return;}
+  if(_campSegSel==='lista'){toast('⚠️ Scegli una lista specifica dal menu');return;}
   var cluster=document.getElementById('cf-cluster').value;
   var filiera=document.getElementById('cf-filiera').value||'ALL';
   var campId ='camp_'+Date.now();
@@ -5615,30 +5639,4 @@ async function renderCampagne(){
     }
     var antBtn='<button class="camp-action" onclick="anteprimaCampagna(this.dataset.k)" data-k="'+k+'" title="Anteprima email">👁</button>';
     return '<div class="camp-row">'
-      +'<div><div style="font-weight:700;font-size:12px">'+c.nome+'</div><div style="font-size:10px;color:#6B7280">'+(c.data_creazione?c.data_creazione.substring(0,10):'—')+'</div></div>'
-      +'<div style="font-size:11px;color:#374151">'+(c.segmento||'—')+'</div>'
-      +'<div style="text-align:center;font-size:12px;font-weight:600">'+inv.toLocaleString('it-IT')+'</div>'
-      +'<div><span class="b-'+stato+'">'+lbl+'</span></div>'
-      +'<div style="display:flex;gap:4px;justify-content:center">'+antBtn+azioni+'</div>'
-      +'</div>';
-  }).join('');
-}
-
-function anteprimaCampagna(k){
-  var c=_campagneData[k];
-  if(!c)return;
-  var p={
-    badge: c.badge||'OFFERTA ESCLUSIVA',
-    titolo: c.titolo||c.nome||'',
-    sub: c.sub||c.oggetto||'',
-    bonus: c.bonus||'',
-    corpo: c.corpo||'',
-    cta: c.cta||"SCOPRI L'OFFERTA →",
-    link: c.link||'https://betpassion.info/'
-  };
-  var sampleHtml = buildEmailHTML(p).replace(/\{\{nome\}\}/g,'Mario').replace(/\{\{username\}\}/g,'mario1990');
-  var modal=document.getElementById('camp-preview-modal');
-  document.getElementById('prev-nome').textContent=c.nome||'Anteprima';
-  document.getElementById('prev-oggetto').textContent='Oggetto: '+(c.oggetto||'—');
-  document.getElementById('prev-dest').textContent='Destinatari stimati: '+(c.destinatari_count||0);
-  document.getElementById('
+      +'<div><div style="font-weight:700;font-size:12px">'+c.
