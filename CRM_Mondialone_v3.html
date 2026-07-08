@@ -1475,8 +1475,6 @@ async function showApp(){
   setInterval(checkReminders, 60000);
   setTimeout(checkReminders, 3000);
   loadTicketsToday();
-  // Nascondi tab Oggi per tutti i ruoli (sostituita dalle Liste)
-  const _tabOggi=document.getElementById('tab-oggi');if(_tabOggi)_tabOggi.style.display='none';
   // Visibilità tab per ruolo
   const _isOp=!currentUser.isAdmin&&!currentUser.isSupervisor&&!currentUser.isTeamLeader;
   const _isTLonly=currentUser.isTeamLeader&&!currentUser.isAdmin;
