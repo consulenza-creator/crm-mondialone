@@ -1484,7 +1484,24 @@ async function showApp(){
   setInterval(checkReminders, 60000);
   setTimeout(checkReminders, 3000);
   loadTicketsToday();
-  switchTab('dash');
+  // Visibilità tab per ruolo
+  const _isOp=!currentUser.isAdmin&&!currentUser.isSupervisor&&!currentUser.isTeamLeader;
+  const _isTLonly=currentUser.isTeamLeader&&!currentUser.isAdmin;
+  if(_isOp){
+    // Operatori: vedono solo Le Mie, Tutti, Liste
+    ['tab-dash','tab-oggi','tab-conv','tab-qualif'].forEach(function(id){
+      const el=document.getElementById(id);if(el)el.style.display='none';
+    });
+    switchTab('mie');
+  } else if(_isTLonly){
+    // Team Leader: nasconde Convertiti (non rilevante per loro)
+    ['tab-conv'].forEach(function(id){
+      const el=document.getElementById(id);if(el)el.style.display='none';
+    });
+    switchTab('dash');
+  } else {
+    switchTab('dash');
+  }
 }
 
 function fillOpSelects(){
@@ -1979,6 +1996,7 @@ function setEsito(u,v){
     delete callState[u].locked;delete callState[u].lockedBy;delete callState[u].lockedAt;
   }
   saveState();
+  if(v) _logCall(u, v, (callState[u]||{}).note||'');
   const row=document.querySelector(`tr[data-u="${u}"]`);
   if(row){
     const isDone=ESITI_CLOSE.has(v),isPend=!!v&&!isDone;
@@ -1987,6 +2005,33 @@ function setEsito(u,v){
     row.querySelector('.esito-sel').classList.toggle('has-val',!!v);
   }
   updateProg();
+  if(v&&['NON RAGGIUNTO','SEGRETERIA','RICHIAMATA'].includes(v)) _suggerisciCallback(u);
+}
+function _suggerisciCallback(username){
+  var existing=document.getElementById('_cb-toast');
+  if(existing)existing.remove();
+  var t=document.createElement('div');
+  t.id='_cb-toast';
+  t.dataset.u=username;
+  t.style.cssText='position:fixed;bottom:70px;right:20px;background:#1E293B;color:#fff;border-radius:12px;padding:12px 16px;font-size:12px;z-index:9999;display:flex;align-items:center;gap:10px;box-shadow:0 4px 24px rgba(0,0,0,.35)';
+  t.innerHTML='<span>📅 Vuoi impostare un reminder di richiamata?</span>'
+    +'<button class="_cbbtn" style="background:#3B82F6;border:none;border-radius:6px;padding:4px 12px;color:#fff;font-size:11px;cursor:pointer;font-weight:700">Imposta</button>'
+    +'<button class="_cbx" style="background:transparent;border:none;color:#94A3B8;cursor:pointer;font-size:18px;line-height:1">&#215;</button>';
+  document.body.appendChild(t);
+  t.querySelector('._cbbtn').onclick=function(){openReminderModal(t.dataset.u);t.remove();};
+  t.querySelector('._cbx').onclick=function(){t.remove();};
+  setTimeout(function(){if(t.parentNode)t.remove();},9000);
+}
+function _logCall(username, esito, note){
+  if(!username)return;
+  if(!schedeState[username])schedeState[username]={};
+  if(!schedeState[username].chiamate)schedeState[username].chiamate=[];
+  const ts=new Date().toISOString();
+  const last=schedeState[username].chiamate.slice(-1)[0]||{};
+  // Evita duplicato se stesso operatore+esito nello stesso minuto
+  if(last.op===(currentUser?currentUser.name:'?')&&last.esito===esito&&last.ts&&ts.slice(0,16)===last.ts.slice(0,16))return;
+  schedeState[username].chiamate.push({ts,op:currentUser?currentUser.name:'?',esito:esito||'',note:note||''});
+  saveSchede();
 }
 function setNote(u,v){if(!callState[u])callState[u]={};callState[u].note=v;saveState();}
 function toggleRichiama(u){
@@ -2265,9 +2310,27 @@ function openScheda(username){
     <div class="scheda-section"><h4>📝 Note operative</h4>
       <div style="font-size:10px;color:#94A3B8;margin-bottom:6px">💡 Aggiungi la tua firma: <b>${currentUser?currentUser.name:'Tu'}</b> · ${new Date().toLocaleDateString('it-IT')}</div>
       <textarea class="scheda-textarea" id="sch-note-op" placeholder="[${currentUser?currentUser.name:'Operatore'} - ${new Date().toLocaleDateString('it-IT')}]: Note, obiezioni, preferenze...">${sc.noteOp||''}</textarea></div>
-    <div class="scheda-section"><h4>📋 Storico contatti</h4>
-      <div style="font-size:10px;color:#94A3B8;margin-bottom:6px">💡 Formato suggerito: <b>Data · Operatore · Risultato</b></div>
-      <textarea class="scheda-textarea" id="sch-storico" style="min-height:90px" placeholder="${new Date().toLocaleDateString('it-IT')} · ${currentUser?currentUser.name:'Operatore'} · ...">${sc.storico||''}</textarea></div>
+    <div class="scheda-section">
+      <h4 style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px">
+        📋 Storico contatti
+        <span style="font-size:10px;color:#94A3B8;font-weight:400">${(sc.chiamate||[]).length} registrati</span>
+      </h4>
+      ${(sc.chiamate&&sc.chiamate.length)?`<div style="max-height:220px;overflow-y:auto;border:1px solid #F1F5F9;border-radius:8px;margin-bottom:10px">`+(sc.chiamate.slice().reverse().map(function(c){
+        const dt=c.ts?new Date(c.ts).toLocaleString('it-IT',{day:'2-digit',month:'2-digit',year:'2-digit',hour:'2-digit',minute:'2-digit'}):'?';
+        const _ec={'ATTIVATO':'#059669','NON RAGGIUNTO':'#94A3B8','SEGRETERIA':'#64748B','RICHIAMATA':'#F59E0B','NON INTERESSATO':'#EF4444','NON IDONEO':'#6B7280','SCHEDINA INVIATA':'#3B82F6','IN VALUTAZIONE':'#8B5CF6'};
+        const col=_ec[c.esito]||'#6B7280';
+        return '<div style="padding:7px 12px;border-bottom:1px solid #F8FAFC">'
+          +'<div style="display:flex;align-items:center;gap:6px;flex-wrap:wrap">'
+          +'<span style="font-size:10px;color:#94A3B8">'+dt+'</span>'
+          +'<span style="font-size:11px;font-weight:700;color:#374151">'+( c.op||'?')+'</span>'
+          +(c.esito?'<span style="font-size:10px;font-weight:700;padding:1px 6px;border-radius:4px;background:'+col+'22;color:'+col+'">'+c.esito+'</span>':'')
+          +'</div>'
+          +(c.note?'<div style="font-size:11px;color:#64748B;margin-top:2px;padding-left:0">'+c.note+'</div>':'')
+          +'</div>';
+      }).join(''))+`</div>`
+      :'<div style="font-size:11px;color:#94A3B8;margin-bottom:8px;padding:8px 0">Nessun contatto ancora registrato.</div>'}
+      <div style="font-size:10px;color:#94A3B8;margin-bottom:4px">📝 Note libere aggiuntive</div>
+      <textarea class="scheda-textarea" id="sch-storico" style="min-height:60px" placeholder="Note aggiuntive...">${sc.storico||''}</textarea></div>
     <div class="scheda-section">
       <h4 style="display:flex;align-items:center;justify-content:space-between">
         <span>🔔 Reminder Telegram</span>
@@ -2527,7 +2590,7 @@ function closeFlagModal(){document.getElementById('flag-reason-modal').classList
 function closeScheda(){document.getElementById('scheda-overlay').classList.remove('open');document.getElementById('scheda-panel').classList.remove('open');currentScheda=null;}
 function saveScheda(){
   if(!currentScheda)return;
-  schedeState[currentScheda]={noteOp:document.getElementById('sch-note-op').value,storico:document.getElementById('sch-storico').value,profilo:document.getElementById('sch-profilo').value,lastSaved:new Date().toISOString(),lastSavedBy:currentUser?currentUser.name:'',lastSavedAt:new Date().toISOString()};
+  schedeState[currentScheda]={chiamate:(schedeState[currentScheda]||{}).chiamate||[],noteOp:document.getElementById('sch-note-op').value,storico:document.getElementById('sch-storico').value,profilo:document.getElementById('sch-profilo').value,lastSaved:new Date().toISOString(),lastSavedBy:currentUser?currentUser.name:'',lastSavedAt:new Date().toISOString()};
   saveSchede();document.getElementById('sch-save-status').textContent='✅ '+new Date().toTimeString().substring(0,5);toast('✅ Scheda salvata');
 }
 
@@ -2582,6 +2645,9 @@ function _dashStats(){
     const totProf=Object.values(cl).reduce((a,v)=>a+v.profitto,0);
     const totTk=Object.values(cl).reduce((a,v)=>a+v.ticket,0);
     const pLabel=(per.da||'').slice(5)+'→'+(per.a||'').slice(5);
+    const _muFil2=dashFiliera==='ALL'?masterUsers:masterUsers.filter(function(u){return u.f===dashFiliera;});
+    const _filPct2=masterUsers.length?(_muFil2.length/masterUsers.length):1;
+    const _filLabel=dashFiliera==='ALL'?'':'· stima '+dashFiliera;
 
     const daily=ta.daily||[];
     let dailyChart='';
@@ -2613,12 +2679,12 @@ function _dashStats(){
     const clOrder=['solo_mond_3plus','solo_mond_singole','solo_mond_doppie','entrambi','solo_mondialone','solo_altro'];
     const clCol={'solo_mond_3plus':'#00C853','solo_mond_singole':'#3B82F6','solo_mond_doppie':'#F59E0B','entrambi':'#8B5CF6','solo_mondialone':'#EF4444','solo_altro':'#6B7280'};
     const clRows=clOrder.filter(k=>cl[k]&&cl[k].utenti>0).map(k=>{
-      const v=cl[k], pct=totU>0?Math.round(v.utenti/totU*100):0, col=clCol[k]||'#6B7280';
+      const v=cl[k], pct=totU>0?Math.round(v.utenti/totU*100):0, col=clCol[k]||'#6B7280', vU=Math.round((v.utenti||0)*_filPct2), vG=Math.round((v.giocato||0)*_filPct2), vP=Math.round((v.profitto||0)*_filPct2);
       return `<tr style="border-top:0.5px solid #F0F0EE">
         <td style="padding:7px 10px"><span style="width:9px;height:9px;border-radius:50%;background:${col};display:inline-block;margin-right:6px"></span>${lbl[k]||k.replace(/_/g,' ')}</td>
-        <td style="padding:7px 10px;text-align:right">${v.utenti.toLocaleString('it-IT')}</td>
-        <td style="padding:7px 10px;text-align:right">€${Math.round(v.giocato).toLocaleString('it-IT')}</td>
-        <td style="padding:7px 10px;text-align:right;font-weight:700">€${Math.round(v.profitto).toLocaleString('it-IT')}</td>
+        <td style="padding:7px 10px;text-align:right">${vU.toLocaleString('it-IT')}</td>
+        <td style="padding:7px 10px;text-align:right">€${vG.toLocaleString('it-IT')}</td>
+        <td style="padding:7px 10px;text-align:right;font-weight:700">€${vP.toLocaleString('it-IT')}</td>
         <td style="padding:7px 10px;text-align:right">
           <div style="display:flex;align-items:center;gap:5px;justify-content:flex-end">
             <div style="width:50px;height:5px;background:#F0F0EE;border-radius:3px;overflow:hidden">
@@ -2639,9 +2705,9 @@ function _dashStats(){
       <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:16px">
         <!-- Sport Totale -->
         <div style="background:#EFF6FF;border-radius:12px;padding:14px 16px;border:1px solid #BFDBFE">
-          <div style="font-size:11px;font-weight:700;color:#2563EB;text-transform:uppercase;letter-spacing:.5px;margin-bottom:10px">⚽ Sport Totale — periodo promo</div>
+          <div style="font-size:11px;font-weight:700;color:#2563EB;text-transform:uppercase;letter-spacing:.5px;margin-bottom:10px">⚽ Sport Totale — periodo promo${_filLabel?` <span style="font-weight:400;font-size:10px;color:#94A3B8">${_filLabel}</span>`:''}</div>
           <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px">
-            ${[{l:'Utenti attivi',v:totU.toLocaleString('it-IT')},{l:'Vol. giocato',v:'€'+Math.round(totGioc).toLocaleString('it-IT')},{l:'Ticket',v:totTk.toLocaleString('it-IT')},{l:'Profitto casa',v:'€'+Math.round(totProf).toLocaleString('it-IT')}].map(k=>`
+            ${[{l:'Utenti attivi',v:Math.round(totU*_filPct2).toLocaleString('it-IT')},{l:'Vol. giocato',v:'€'+Math.round(totGioc*_filPct2).toLocaleString('it-IT')},{l:'Ticket',v:Math.round(totTk*_filPct2).toLocaleString('it-IT')},{l:'Profitto casa',v:'€'+Math.round(totProf*_filPct2).toLocaleString('it-IT')}].map(k=>`
               <div style="background:#fff;border-radius:8px;padding:8px 10px">
                 <div style="font-size:15px;font-weight:800;color:#0F172A">${k.v}</div>
                 <div style="font-size:10px;color:#64748B;margin-top:1px">${k.l}</div>
@@ -2695,9 +2761,9 @@ function _dashStats(){
           <tbody>${clRows}</tbody>
           <tfoot><tr style="border-top:1.5px solid #E2E8F0;background:#F8FAFC">
             <td style="padding:7px 10px;font-weight:700">Totale</td>
-            <td style="padding:7px 10px;text-align:right;font-weight:700">${totU.toLocaleString('it-IT')}</td>
-            <td style="padding:7px 10px;text-align:right;font-weight:700">€${Math.round(totGioc).toLocaleString('it-IT')}</td>
-            <td style="padding:7px 10px;text-align:right;font-weight:700">€${Math.round(totProf).toLocaleString('it-IT')}</td>
+            <td style="padding:7px 10px;text-align:right;font-weight:700">${Math.round(totU*_filPct2).toLocaleString('it-IT')}</td>
+            <td style="padding:7px 10px;text-align:right;font-weight:700">€${Math.round(totGioc*_filPct2).toLocaleString('it-IT')}</td>
+            <td style="padding:7px 10px;text-align:right;font-weight:700">€${Math.round(totProf*_filPct2).toLocaleString('it-IT')}</td>
             <td></td>
           </tr></tfoot>
         </table>
@@ -2963,6 +3029,11 @@ function renderMie(){
 
   const pendingFiltered=alertFilter?alertCalls:pending;
   const editateFiltered=alertFilter?[]:editate;
+  // Ordina pending: IN CALO → SPARITO → RIENTRATO → STABILE → IN CRESCITA → altri
+  const _MIETP={'IN CALO':0,'SPARITO':1,'RIENTRATO':2,'STABILE':3,'IN CRESCITA':4};
+  pendingFiltered.sort(function(a,b){
+    return ((_MIETP[normTrend(a.t,a.vt)]??5)-(_MIETP[normTrend(b.t,b.vt)]??5));
+  });
 
   document.getElementById('mie-pending-badge').textContent=pendingFiltered.length;
   document.getElementById('mie-editate-badge').textContent=editateFiltered.length;
@@ -5159,4 +5230,4 @@ async function distribuisciEquo() {
 }
 </script>
 </body>
-</html>
+</html>                                                                         
