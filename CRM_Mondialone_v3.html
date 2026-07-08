@@ -1661,7 +1661,7 @@ function renderChiamateOp() {
     var canAssign = currentUser && (currentUser.isAdmin || currentUser.isTeamLeader || currentUser.isSupervisor);
     var opOpts = '<option value="">— Op —</option>' + ops.map(function(n){ return '<option' + (st.op===n?' selected':'') + ' value="' + n + '">' + n + '</option>'; }).join('');
     var opCell = canAssign
-      ? '<select onchange="if(!callState[\''+esc+'\'])callState[\''+esc+'\']={};callState[\''+esc+'\'].op=this.value;saveState();" style="width:100%;border:1px solid #D1D5DB;border-radius:5px;padding:3px 5px;font-size:11px">' + opOpts + '</select>'
+      ? '<select onchange="setOp(\''+esc+'\',this.value);" style="width:100%;border:1px solid #D1D5DB;border-radius:5px;padding:3px 5px;font-size:11px">' + opOpts + '</select>'
       : '<span style="font-size:11px;color:#374151">' + (st.op||'—') + '</span>';
     return '<tr style="background:' + rowBg + ';border-bottom:1px solid #F1F5F9;cursor:pointer" onclick="if(event.target.tagName!==\'SELECT\'&&event.target.tagName!==\'INPUT\'&&event.target.tagName!==\'BUTTON\')openScheda(\'' + esc + '\')">' +
       '<td style="padding:8px 10px;font-weight:700;font-size:12px;white-space:nowrap">' + u.u + '</td>' +
@@ -3290,28 +3290,23 @@ async function sendTelegram(chatId, text){
 }
 
 async function notifyOpAssigned(username, opName){
-  const op=cfg.operators.find(o=>o.name===opName);
-  if(!op){console.warn('[TG] Operatore non trovato in cfg:',opName);return;}
-  if(!op.tg_chat_id){
-    console.warn('[TG] Operatore senza tg_chat_id:',opName);
-    toast('⚠️ '+opName+' non ha Telegram configurato');
-    return;
+  let op=cfg.operators.find(o=>o.name===opName);
+  // Se op manca o non ha tg_chat_id, ricarica cfg fresco da Firebase (evita race condition con localStorage)
+  if(!op||!op.tg_chat_id){
+    try{
+      const d=await fetch(FB_URL+'/cfg/v1.json').then(r=>r.ok?r.json():null);
+      if(d&&d.operators){cfg=d;try{localStorage.setItem(LS_CFG,JSON.stringify(cfg));}catch(e){}op=cfg.operators.find(o=>o.name===opName);}
+    }catch(e){}
   }
+  if(!op||!op.tg_chat_id)return;
   const u=TOP60.find(x=>x.u===username)||masterUsers.find(x=>x.u===username)||{u:username};
   const txt=`🎯 <b>Nuovo task assegnato!</b>\n\n👤 <b>${username}</b>`
-    +(u.fn||u.f?`\n🏢 ${u.f||'—'} · ${u.fn||'—'}`:'')
+    +(u.f||u.fn?`\n🏢 ${u.f||'—'} · ${u.fn||'—'}`:'')
     +(u.c?`\n📋 ${u.c}`:'')
     +(u.pr?`\n⭐ Priorità: ${u.pr}`:'')
     +(u.t?`\n📈 Trend: ${u.t}`:'')
     +((u.scr||u.script)?`\n\n📞 <i>${u.scr||u.script}</i>`:'');
-  console.log('[TG] Invio notifica a',opName,'chatId:',op.tg_chat_id);
-  try{
-    await sendTelegram(op.tg_chat_id, txt);
-    console.log('[TG] Notifica inviata OK');
-  }catch(e){
-    console.error('[TG] Errore invio:',e.message);
-    toast('⚠️ Telegram: '+e.message.substring(0,50));
-  }
+  await sendTelegram(op.tg_chat_id, txt);
 }
 
 async function fbLogStorico(username, esito, opName){
