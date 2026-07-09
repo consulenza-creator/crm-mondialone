@@ -448,7 +448,7 @@ th[data-tip],[data-tip]{cursor:help}
     <div class="tab" id="tab-liste" onclick="switchTab('liste')">🎯 Liste</div>
   </div>
   <div class="main-content">
-    <div id="pane-oggi">
+    <div id="pane-oggi" style="display:none">
       <div id="oggi-top60-wrap">
       <div class="mattina-bar" id="mattina-bar" style="display:none">
         <span class="lbl">🌅 ASSEGNA MATTINA</span>
@@ -1447,35 +1447,7 @@ async function showApp(){
       if(sel.options[i].value===currentUser.name){sel.selectedIndex=i;break;}
     }
   }
-  // Mostra subito i dati cached (localStorage) — non aspetta Firebase
-  applyFilters();
-  // Poi aggiorna in background da Firebase
-  await fbLoad();
-  await fbLoadSchede();
-  startFbSync();
-  startFbSchedeSync();
-  snapshotTodayList();
-  loadListeStoriche().then(()=>{applyFilters();});
-  applyFilters(); // re-render con dati Firebase aggiornati
-  fbSaveOpLogin(); // traccia login operatore
-  // Controlla comunicazioni admin non lette
-  if(!currentUser.isAdmin && !currentUser.isSupervisor) {
-    setTimeout(checkComunicazioni, 1200);
-  }
-  // Nascondi filtro operatore per operatori normali
-  const fltOpWrap = document.getElementById('flt-op');
-  if(fltOpWrap) fltOpWrap.style.display = (currentUser.isAdmin||currentUser.isSupervisor||currentUser.isTeamLeader) ? '' : 'none';
-  const tabMie=document.getElementById('tab-mie');
-  if(tabMie){
-    tabMie.style.display='block';
-    if(currentUser.isAdmin||currentUser.isSupervisor||currentUser.isTeamLeader){
-      tabMie.innerHTML='📊 Andamento <span class="tab-count" id="tc-mie">0</span>';
-    }
-  }
-  setInterval(checkReminders, 60000);
-  setTimeout(checkReminders, 3000);
-  loadTicketsToday();
-  // Visibilità tab per ruolo
+  // Visibilità tab per ruolo — SUBITO, prima degli await, così non vediamo pane sbagliato
   const _isOp=!currentUser.isAdmin&&!currentUser.isSupervisor&&!currentUser.isTeamLeader;
   const _isTLonly=currentUser.isTeamLeader&&!currentUser.isAdmin;
   if(_isOp){
@@ -1493,6 +1465,36 @@ async function showApp(){
   } else {
     switchTab('dash');
   }
+  // Pre-carica liste promo subito (non bloccante) — pronte quando si clicca Chiamate/Liste
+  loadListePromo();
+  // Nascondi filtro operatore per operatori normali
+  const fltOpWrap = document.getElementById('flt-op');
+  if(fltOpWrap) fltOpWrap.style.display = (currentUser.isAdmin||currentUser.isSupervisor||currentUser.isTeamLeader) ? '' : 'none';
+  const tabMie=document.getElementById('tab-mie');
+  if(tabMie){
+    tabMie.style.display='block';
+    if(currentUser.isAdmin||currentUser.isSupervisor||currentUser.isTeamLeader){
+      tabMie.innerHTML='📊 Andamento <span class="tab-count" id="tc-mie">0</span>';
+    }
+  }
+  // Mostra subito i dati cached (localStorage) — non aspetta Firebase
+  applyFilters();
+  // Poi aggiorna in background da Firebase
+  await fbLoad();
+  await fbLoadSchede();
+  startFbSync();
+  startFbSchedeSync();
+  snapshotTodayList();
+  loadListeStoriche().then(()=>{applyFilters();});
+  applyFilters(); // re-render con dati Firebase aggiornati
+  fbSaveOpLogin(); // traccia login operatore
+  // Controlla comunicazioni admin non lette
+  if(!currentUser.isAdmin && !currentUser.isSupervisor) {
+    setTimeout(checkComunicazioni, 1200);
+  }
+  setInterval(checkReminders, 60000);
+  setTimeout(checkReminders, 3000);
+  loadTicketsToday();
 }
 
 function fillOpSelects(){
@@ -1567,9 +1569,12 @@ function switchTab(t){
   });
   if(t==='dash')renderDashboard();
   if(t==='liste'){
-    if(!masterReady)loadMaster().then(()=>renderListeUI());
-    else renderListeUI();
-    loadListePromo();
+    // Mostra subito se _promoList già caricato (da pre-load in showApp), altrimenti aspetta loadListePromo
+    if(Object.keys(_promoList).length){
+      if(!masterReady)loadMaster().then(()=>renderListeUI());
+      else renderListeUI();
+    }
+    loadListePromo(); // aggiorna sempre da Firebase e chiama renderListeUI alla fine
   }
   if(t==='tutti'){
     if(masterReady){renderTutti();}
@@ -5251,12 +5256,10 @@ async function distribuisciEquo() {
   try {
     if (typeof fbSave === 'function') await fbSave();
     renderListaUsers();
-    const summary = allOps.filter(o=>cnts[o.name]>0).map(o=>o.name+': '+cnts[o.name]).join(' · ');
-    toast('✅ '+total+' distribuiti equamente');
-    if (st) st.innerHTML = '✅ <b>'+total+'</b> distribuiti · '+summary+'<br><small style="color:#059669">→ Visibili in Le Mie Chiamate</small>';
-  } catch(e) { toast('⚠️ Errore: '+e.message); if(st)st.textContent=''; }
+    toast('✅ ' + total + ' utenti distribuiti su ' + allOps.length + ' operatori');
+    if (st) st.innerHTML = '✅ <b>' + total + '</b> distribuiti su <b>' + allOps.length + '</b> operatori';
+  } catch(e) { toast('⚠️ Errore: ' + e.message); if(st) st.textContent=''; }
 }
-
 </script>
 </body>
 </html>
