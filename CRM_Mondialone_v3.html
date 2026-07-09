@@ -817,7 +817,7 @@ Più è alta, più il giocatore usa combinazioni.">%Multi</th>
           </div>
           <div>
             <div style="font-size:11px;color:#6B7280;margin-bottom:3px">% Singole min (0=tutti)</div>
-            <input id="lf-singol-min" type="number" min="0" max="100" value="0" style="width:100%;padding:6px 8px;border:1px solid #E5E7EB;border-radius:5px;font-size:13px">
+            <input id="lf-singol-min" type="number" min="0" max="100" value="0" oninput="if(parseFloat(this.value)>0){var m=document.getElementById('lf-p-multi');if(m)m.value=0;}" style="width:100%;padding:6px 8px;border:1px solid #E5E7EB;border-radius:5px;font-size:13px">
           </div>
         </div>
 
@@ -874,7 +874,7 @@ Più è alta, più il giocatore usa combinazioni.">%Multi</th>
           </div>
           <div>
             <div style="font-size:11px;color:#6B7280;margin-bottom:3px">% Multipla min (0=tutti)</div>
-            <input id="lf-p-multi" type="number" min="0" max="100" value="0" style="width:100%;padding:6px 8px;border:1px solid #BFDBFE;border-radius:5px;font-size:13px">
+            <input id="lf-p-multi" type="number" min="0" max="100" value="0" oninput="if(parseFloat(this.value)>0){var s=document.getElementById('lf-singol-min');if(s)s.value=0;}" style="width:100%;padding:6px 8px;border:1px solid #BFDBFE;border-radius:5px;font-size:13px">
           </div>
         </div>
       </div>
@@ -4698,8 +4698,8 @@ function runPromoEngine(config) {
     const ntgg   = Math.min(1, (u.tgg||0) / 365);
     const pm_raw  = hs.h_pm || u.pm || 0; // % multipla: usa storico sport, fallback su snapshot
     const ps_raw  = hs.h_ps || u.ps || 0; // % singola: usa storico sport, fallback su snapshot
-    if (multiMin > 0 && pm_raw < multiMin) continue; // filtro % multipla min
-    if (singolMin > 0 && ps_raw < singolMin) continue; // filtro % singole min
+    if (singolMin > 0 && ps_raw < singolMin) continue; // filtro % singole min (priorità su multiMin)
+    if (singolMin === 0 && multiMin > 0 && pm_raw < multiMin) continue; // filtro % multipla min (solo se singolMin non attivo)
     const score  = ns90*pesoS90 + nvol*pesoVol + ntnd*pesoTrend + ntgg*pesoTenure;
     results.push({...u, _score:score, h_vol:hvol, h_giorni:hs.h_giorni||0, h_pref:hs.h_pref||''});
   }
