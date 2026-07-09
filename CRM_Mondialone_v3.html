@@ -873,8 +873,8 @@ Più è alta, più il giocatore usa combinazioni.">%Multi</th>
             <input id="lf-p-tenure" type="number" step="0.05" min="0" max="1" value="0.15" style="width:100%;padding:6px 8px;border:1px solid #BFDBFE;border-radius:5px;font-size:13px">
           </div>
           <div>
-            <div style="font-size:11px;color:#6B7280;margin-bottom:3px">% Multipla</div>
-            <input id="lf-p-multi" type="number" step="0.05" min="0" max="1" value="0.0" style="width:100%;padding:6px 8px;border:1px solid #BFDBFE;border-radius:5px;font-size:13px">
+            <div style="font-size:11px;color:#6B7280;margin-bottom:3px">% Multipla min (0=tutti)</div>
+            <input id="lf-p-multi" type="number" min="0" max="100" value="0" style="width:100%;padding:6px 8px;border:1px solid #BFDBFE;border-radius:5px;font-size:13px">
           </div>
         </div>
       </div>
@@ -4654,7 +4654,7 @@ function _getListaConfig() {
     pesoVol:    parseFloat(document.getElementById('lf-p-vol').value)     || 0.25,
     pesoTrend:  parseFloat(document.getElementById('lf-p-trend').value)   || 0.25,
     pesoTenure: parseFloat(document.getElementById('lf-p-tenure').value)  || 0.15,
-    pesoMulti:  parseFloat(document.getElementById('lf-p-multi')  ? document.getElementById('lf-p-multi').value  : 0) || 0,
+    multiMin:   parseFloat(document.getElementById('lf-p-multi')  ? document.getElementById('lf-p-multi').value  : 0) || 0,
     singolMin:  parseFloat(document.getElementById('lf-singol-min') ? document.getElementById('lf-singol-min').value : 0) || 0,
   };
 }
@@ -4665,7 +4665,7 @@ function runPromoEngine(config) {
     stake90Min=0, volStorMin=0, tenureMin=0, ultTicketMaxGg=0,
     tendenze=[], filiere=[], escludiAuto=true, escludiSegn=true,
     escludiCls=['LIMIT','MONITORING'],
-    pesoS90=0.35, pesoVol=0.25, pesoTrend=0.25, pesoTenure=0.15, pesoMulti=0, singolMin=0
+    pesoS90=0.35, pesoVol=0.25, pesoTrend=0.25, pesoTenure=0.15, singolMin=0, multiMin=0
   } = config;
   const oggi = new Date();
   const results = [];
@@ -4696,10 +4696,11 @@ function runPromoEngine(config) {
     const tMap   = {'IN CRESCITA':1,'RIENTRATO':0.8,'STABILE':0.6,'IN CALO':0.35,'SPARITO':0.1};
     const ntnd   = tMap[u.t] || 0.5;
     const ntgg   = Math.min(1, (u.tgg||0) / 365);
-    const nMulti  = Math.min(1, (u.pm||0) / 100);
+    const pm_raw  = hs.h_pm || u.pm || 0; // % multipla: usa storico sport, fallback su snapshot
     const ps_raw  = hs.h_ps || u.ps || 0; // % singola: usa storico sport, fallback su snapshot
+    if (multiMin > 0 && pm_raw < multiMin) continue; // filtro % multipla min
     if (singolMin > 0 && ps_raw < singolMin) continue; // filtro % singole min
-    const score  = ns90*pesoS90 + nvol*pesoVol + ntnd*pesoTrend + ntgg*pesoTenure + nMulti*pesoMulti;
+    const score  = ns90*pesoS90 + nvol*pesoVol + ntnd*pesoTrend + ntgg*pesoTenure;
     results.push({...u, _score:score, h_vol:hvol, h_giorni:hs.h_giorni||0, h_pref:hs.h_pref||''});
   }
   return results.sort((a,b) => b._score - a._score);
