@@ -2678,7 +2678,7 @@ function _dashStats(){
     const cl=ta.cluster, per=ta.periodo||{};
     const totU=Object.values(cl).reduce((a,v)=>a+v.utenti,0);
     const totGioc=Object.values(cl).reduce((a,v)=>a+v.giocato,0);
-    const totProf=Object.values(cl).reduce((a,v)=>a+v.profitto,0);
+    const totProf=Object.values(cl).reduce((a,v)=>a-v.profitto,0);
     const totTk=Object.values(cl).reduce((a,v)=>a+v.ticket,0);
     const pLabel=(per.da||'').slice(5)+'→'+(per.a||'').slice(5);
     const _muFil2=dashFiliera==='ALL'?masterUsers:masterUsers.filter(function(u){return u.f===dashFiliera;});
@@ -2715,7 +2715,7 @@ function _dashStats(){
     const clOrder=['solo_mond_3plus','solo_mond_singole','solo_mond_doppie','entrambi','solo_mondialone','solo_altro'];
     const clCol={'solo_mond_3plus':'#00C853','solo_mond_singole':'#3B82F6','solo_mond_doppie':'#F59E0B','entrambi':'#8B5CF6','solo_mondialone':'#EF4444','solo_altro':'#6B7280'};
     const clRows=clOrder.filter(k=>cl[k]&&cl[k].utenti>0).map(k=>{
-      const v=cl[k], pct=totU>0?Math.round(v.utenti/totU*100):0, col=clCol[k]||'#6B7280', vU=Math.round((v.utenti||0)*_filPct2), vG=Math.round((v.giocato||0)*_filPct2), vP=Math.round((v.profitto||0)*_filPct2);
+      const v=cl[k], pct=totU>0?Math.round(v.utenti/totU*100):0, col=clCol[k]||'#6B7280', vU=Math.round((v.utenti||0)*_filPct2), vG=Math.round((v.giocato||0)*_filPct2), vP=Math.round(-(v.profitto||0)*_filPct2);
       return `<tr style="border-top:0.5px solid #F0F0EE">
         <td style="padding:7px 10px"><span style="width:9px;height:9px;border-radius:50%;background:${col};display:inline-block;margin-right:6px"></span>${lbl[k]||k.replace(/_/g,' ')}</td>
         <td style="padding:7px 10px;text-align:right">${vU.toLocaleString('it-IT')}</td>
@@ -2842,7 +2842,7 @@ function renderTacAnalytics(){
   const cl=ta.cluster;
   const totU=Object.values(cl).reduce((s,v)=>s+v.utenti,0);
   const totGioc=Object.values(cl).reduce((s,v)=>s+v.giocato,0);
-  const totProf=Object.values(cl).reduce((s,v)=>s+v.profitto,0);
+  const totProf=Object.values(cl).reduce((s,v)=>s-v.profitto,0);
   const totTk=Object.values(cl).reduce((s,v)=>s+v.ticket,0);
   const kpis=[
     {l:'Utenti attivi',v:totU.toLocaleString('it-IT'),ic:'👥'},
@@ -2900,7 +2900,7 @@ function renderTacAnalytics(){
         <td style="padding:8px 10px;text-align:right;color:#374151">${v.utenti.toLocaleString('it-IT')}</td>
         <td style="padding:8px 10px;text-align:right;color:#374151">€${Math.round(v.giocato).toLocaleString('it-IT')}</td>
         <td style="padding:8px 10px;text-align:right;color:#374151">€${Math.round(v.vincite).toLocaleString('it-IT')}</td>
-        <td style="padding:8px 10px;text-align:right;color:#1A1A1A;font-weight:600">€${Math.round(v.profitto).toLocaleString('it-IT')}</td>
+        <td style="padding:8px 10px;text-align:right;color:#1A1A1A;font-weight:600">€${Math.round(-v.profitto).toLocaleString('it-IT')}</td>
         <td style="padding:8px 10px;text-align:right">
           <div style="display:flex;align-items:center;gap:6px;justify-content:flex-end">
             <div style="width:60px;height:6px;background:#F0F0EE;border-radius:3px;overflow:hidden">
