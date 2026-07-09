@@ -815,6 +815,10 @@ Più è alta, più il giocatore usa combinazioni.">%Multi</th>
             <div style="font-size:11px;color:#6B7280;margin-bottom:3px">Ultimo ticket max gg fa (0=tutti)</div>
             <input id="lf-ultgg" type="number" value="0" min="0" style="width:100%;padding:6px 8px;border:1px solid #E5E7EB;border-radius:5px;font-size:13px">
           </div>
+          <div>
+            <div style="font-size:11px;color:#6B7280;margin-bottom:3px">% Singole min (0=tutti)</div>
+            <input id="lf-singol-min" type="number" min="0" max="100" value="0" style="width:100%;padding:6px 8px;border:1px solid #E5E7EB;border-radius:5px;font-size:13px">
+          </div>
         </div>
 
         <div style="margin-bottom:10px">
@@ -871,10 +875,6 @@ Più è alta, più il giocatore usa combinazioni.">%Multi</th>
           <div>
             <div style="font-size:11px;color:#6B7280;margin-bottom:3px">% Multipla</div>
             <input id="lf-p-multi" type="number" step="0.05" min="0" max="1" value="0.0" style="width:100%;padding:6px 8px;border:1px solid #BFDBFE;border-radius:5px;font-size:13px">
-          </div>
-          <div>
-            <div style="font-size:11px;color:#6B7280;margin-bottom:3px">% Singole</div>
-            <input id="lf-p-singol" type="number" step="0.05" min="0" max="1" value="0.0" style="width:100%;padding:6px 8px;border:1px solid #BFDBFE;border-radius:5px;font-size:13px">
           </div>
         </div>
       </div>
@@ -4655,7 +4655,7 @@ function _getListaConfig() {
     pesoTrend:  parseFloat(document.getElementById('lf-p-trend').value)   || 0.25,
     pesoTenure: parseFloat(document.getElementById('lf-p-tenure').value)  || 0.15,
     pesoMulti:  parseFloat(document.getElementById('lf-p-multi')  ? document.getElementById('lf-p-multi').value  : 0) || 0,
-    pesoSingol: parseFloat(document.getElementById('lf-p-singol') ? document.getElementById('lf-p-singol').value : 0) || 0,
+    singolMin:  parseFloat(document.getElementById('lf-singol-min') ? document.getElementById('lf-singol-min').value : 0) || 0,
   };
 }
 
@@ -4665,7 +4665,7 @@ function runPromoEngine(config) {
     stake90Min=0, volStorMin=0, tenureMin=0, ultTicketMaxGg=0,
     tendenze=[], filiere=[], escludiAuto=true, escludiSegn=true,
     escludiCls=['LIMIT','MONITORING'],
-    pesoS90=0.35, pesoVol=0.25, pesoTrend=0.25, pesoTenure=0.15, pesoMulti=0, pesoSingol=0
+    pesoS90=0.35, pesoVol=0.25, pesoTrend=0.25, pesoTenure=0.15, pesoMulti=0, singolMin=0
   } = config;
   const oggi = new Date();
   const results = [];
@@ -4698,8 +4698,8 @@ function runPromoEngine(config) {
     const ntgg   = Math.min(1, (u.tgg||0) / 365);
     const nMulti  = Math.min(1, (u.pm||0) / 100);
     const ps_raw  = hs.h_ps || u.ps || 0; // % singola: usa storico sport, fallback su snapshot
-    const nSingol = Math.min(1, ps_raw / 100);
-    const score  = ns90*pesoS90 + nvol*pesoVol + ntnd*pesoTrend + ntgg*pesoTenure + nMulti*pesoMulti + nSingol*pesoSingol;
+    if (singolMin > 0 && ps_raw < singolMin) continue; // filtro % singole min
+    const score  = ns90*pesoS90 + nvol*pesoVol + ntnd*pesoTrend + ntgg*pesoTenure + nMulti*pesoMulti;
     results.push({...u, _score:score, h_vol:hvol, h_giorni:hs.h_giorni||0, h_pref:hs.h_pref||''});
   }
   return results.sort((a,b) => b._score - a._score);
@@ -5168,35 +5168,35 @@ const _PRESETS = {
     nome:'Gestione Utenti', obiettivo:'gestione',
     stake90:0, volstor:100, tenure:30, ultgg:0,
     tendenze:[], filiere:[],
-    pesoS90:0.3, pesoVol:0.3, pesoTrend:0.2, pesoTenure:0.2, pesoMulti:0, pesoSingol:0
+    pesoS90:0.3, pesoVol:0.3, pesoTrend:0.2, pesoTenure:0.2, pesoMulti:0
   },
   promo_push: {
     nome:'Promo Push', obiettivo:'promo_push',
     stake90:20, volstor:50, tenure:0, ultgg:30,
     tendenze:['IN CRESCITA','STABILE','IN CALO','RIENTRATO'],
     filiere:[],
-    pesoS90:0.45, pesoVol:0.2, pesoTrend:0.25, pesoTenure:0.1, pesoMulti:0, pesoSingol:0
+    pesoS90:0.45, pesoVol:0.2, pesoTrend:0.25, pesoTenure:0.1, pesoMulti:0
   },
   retention: {
     nome:'Retention', obiettivo:'retention',
     stake90:100, volstor:500, tenure:60, ultgg:45,
     tendenze:['IN CALO'],
     filiere:[],
-    pesoS90:0.4, pesoVol:0.3, pesoTrend:0.2, pesoTenure:0.1, pesoMulti:0, pesoSingol:0
+    pesoS90:0.4, pesoVol:0.3, pesoTrend:0.2, pesoTenure:0.1, pesoMulti:0
   },
   riattivazione: {
     nome:'Riattivazione', obiettivo:'riattivazione',
     stake90:0, volstor:200, tenure:0, ultgg:0,
     tendenze:['SPARITO'],
     filiere:[],
-    pesoS90:0.1, pesoVol:0.5, pesoTrend:0.1, pesoTenure:0.3, pesoMulti:0, pesoSingol:0
+    pesoS90:0.1, pesoVol:0.5, pesoTrend:0.1, pesoTenure:0.3, pesoMulti:0
   },
   monitoraggio: {
     nome:'Monitoraggio VIP', obiettivo:'monitoraggio',
     stake90:500, volstor:2000, tenure:90, ultgg:0,
     tendenze:[],
     filiere:[],
-    pesoS90:0.35, pesoVol:0.35, pesoTrend:0.15, pesoTenure:0.15, pesoMulti:0, pesoSingol:0
+    pesoS90:0.35, pesoVol:0.35, pesoTrend:0.15, pesoTenure:0.15, pesoMulti:0
   }
 };
 function applyPreset(key) {
@@ -5212,7 +5212,6 @@ function applyPreset(key) {
   document.getElementById('lf-p-trend').value = p.pesoTrend;
   document.getElementById('lf-p-tenure').value = p.pesoTenure;
   const _pm = document.getElementById('lf-p-multi'); if (_pm) _pm.value = p.pesoMulti || 0;
-  const _ps = document.getElementById('lf-p-singol'); if (_ps) _ps.value = p.pesoSingol || 0;
   // Tendenze
   document.querySelectorAll('.lf-trend').forEach(cb => {
     cb.checked = p.tendenze.length === 0 || p.tendenze.includes(cb.value);
