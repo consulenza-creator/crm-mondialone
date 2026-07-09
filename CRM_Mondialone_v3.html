@@ -1420,6 +1420,7 @@ function doAdminLogin(){
   else{setLoginError('PIN Admin errato');document.getElementById('pin-inp').value='';}
 }
 function doLogout(){
+  _stopInactivityTimer();
   if(fbEventSource){fbEventSource.close();fbEventSource=null;}
   try{localStorage.removeItem(LS_USER);}catch(e){}
   currentUser=null;
@@ -1427,6 +1428,57 @@ function doLogout(){
   document.getElementById('screen-login').style.display='flex';
   document.getElementById('pin-inp').value='';
   renderLoginScreen();
+}
+
+
+// ── INATTIVITÀ: logout automatico ────────────────────────────────────────────
+const _INACTIVITY_LIMIT_MS = 30 * 60 * 1000; // 30 minuti senza attività → logout
+const _INACTIVITY_WARN_MS  = 28 * 60 * 1000; // avviso a 28 min (2 min prima)
+let _inactivityTimer = null, _inactivityWarnTimer = null;
+let _inactivityToastEl = null, _inactivityCountdown = null;
+
+function _clearInactivityTimers(){
+  clearTimeout(_inactivityTimer);
+  clearTimeout(_inactivityWarnTimer);
+  clearInterval(_inactivityCountdown);
+  if(_inactivityToastEl){ _inactivityToastEl.remove(); _inactivityToastEl=null; }
+}
+
+function _resetInactivityTimer(){
+  if(!currentUser) return;
+  _clearInactivityTimers();
+  _inactivityWarnTimer = setTimeout(_showInactivityWarning, _INACTIVITY_WARN_MS);
+  _inactivityTimer     = setTimeout(doLogout, _INACTIVITY_LIMIT_MS);
+}
+
+function _showInactivityWarning(){
+  let secsLeft = 120;
+  _inactivityToastEl = document.createElement('div');
+  _inactivityToastEl.style.cssText = 'position:fixed;bottom:70px;left:50%;transform:translateX(-50%);background:#1E293B;color:#fff;border-radius:10px;padding:12px 20px;z-index:99999;display:flex;align-items:center;gap:10px;box-shadow:0 4px 24px rgba(0,0,0,.5);font-size:13px;cursor:pointer;white-space:nowrap';
+  _inactivityToastEl.onclick = _resetInactivityTimer;
+  document.body.appendChild(_inactivityToastEl);
+  function _tick(){
+    if(!_inactivityToastEl) return;
+    const m=Math.floor(secsLeft/60), s=secsLeft%60;
+    _inactivityToastEl.innerHTML = '⏱ Sessione in scadenza tra <b style="color:#FBBF24;margin:0 4px">'+m+':'+(s<10?'0':'')+s+'</b> · <span style="color:#34D399;text-decoration:underline">Clicca per restare</span>';
+    if(--secsLeft < 0) clearInterval(_inactivityCountdown);
+  }
+  _tick();
+  _inactivityCountdown = setInterval(_tick, 1000);
+}
+
+function _startInactivityTimer(){
+  ['mousemove','mousedown','keydown','scroll','touchstart','click'].forEach(function(ev){
+    document.addEventListener(ev, _resetInactivityTimer, {passive:true});
+  });
+  _resetInactivityTimer();
+}
+
+function _stopInactivityTimer(){
+  _clearInactivityTimers();
+  ['mousemove','mousedown','keydown','scroll','touchstart','click'].forEach(function(ev){
+    document.removeEventListener(ev, _resetInactivityTimer);
+  });
 }
 
 // ── SNAPSHOT LISTA GIORNALIERA su Firebase ──────────────────────────
@@ -1471,6 +1523,7 @@ async function showApp(){
   }
   // Pre-carica liste promo subito (non bloccante) — pronte quando si clicca Chiamate/Liste
   loadListePromo();
+  _startInactivityTimer(); // avvia timer inattività (30 min → logout)
   // Nascondi filtro operatore per operatori normali
   const fltOpWrap = document.getElementById('flt-op');
   if(fltOpWrap) fltOpWrap.style.display = (currentUser.isAdmin||currentUser.isSupervisor||currentUser.isTeamLeader) ? '' : 'none';
