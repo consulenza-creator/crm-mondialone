@@ -435,12 +435,25 @@ th[data-tip],[data-tip]{cursor:help}
     <span class="hdr-date" id="hdr-date"></span>
     <div class="hdr-spacer"></div>
     <span class="hdr-user" id="user-chip"></span>
+    <div style="position:relative;display:inline-flex;align-items:center">
+      <button id="notif-bell-btn" onclick="toggleNotifPanel()" style="background:transparent;border:none;color:#94A3B8;cursor:pointer;font-size:18px;padding:4px 6px;position:relative" title="Notifiche">
+        🔔
+        <span id="notif-badge" style="display:none;position:absolute;top:0;right:0;background:#EF4444;color:#fff;font-size:9px;font-weight:700;border-radius:50%;width:14px;height:14px;line-height:14px;text-align:center"></span>
+      </button>
+      <div id="notif-panel" style="display:none;position:absolute;top:36px;right:0;width:320px;background:#1E293B;border:1px solid #334155;border-radius:10px;box-shadow:0 8px 24px rgba(0,0,0,.4);z-index:9999;max-height:400px;overflow-y:auto">
+        <div style="padding:12px 16px;border-bottom:1px solid #334155;display:flex;align-items:center;justify-content:space-between">
+          <span style="font-size:13px;font-weight:700;color:#F1F5F9">🔔 Notifiche ricevute</span>
+          <button onclick="cancellaNotifiche()" style="background:transparent;border:none;color:#64748B;cursor:pointer;font-size:11px">Cancella tutte</button>
+        </div>
+        <div id="notif-panel-list" style="padding:8px 0"></div>
+      </div>
+    </div>
     <button class="btn-gear" id="btn-gear" onclick="toggleSettings()">⚙️</button>
     <button class="hdr-logout" onclick="location.reload()" style="background:#334155;margin-right:4px" title="Aggiorna pagina">🔄</button><button class="hdr-logout" onclick="doLogout()">Esci</button>
   </div>
   <div class="tab-bar">
     <div class="tab active" id="tab-dash" onclick="switchTab('dash')">📊 Dashboard</div>
-    <div class="tab" id="tab-oggi" onclick="switchTab('oggi')">📋 Chiamate <span class="tab-count" id="tc-oggi">60</span></div>
+    <div class="tab" id="tab-oggi" onclick="switchTab('oggi')">📋 Chiamate <span class="tab-count" id="tc-oggi">...</span></div>
     <div class="tab" id="tab-mie" onclick="switchTab('mie')">📞 Le Mie <span class="tab-count" id="tc-mie">0</span></div>
     <div class="tab" id="tab-tutti" onclick="switchTab('tutti')" style="display:none">👥 Tutti gli utenti <span class="tab-count" id="tc-tutti">...</span></div>
     <div class="tab" id="tab-conv" onclick="switchTab('conv')" style="display:none">🏆 Convertiti <span class="tab-count" id="tc-conv">0</span></div>
@@ -1121,14 +1134,7 @@ Più è alta, più il giocatore usa combinazioni.">%Multi</th>
     <button class="btn btn-ghost btn-sm" onclick="renderArchivioPanel()" style="width:100%;margin-bottom:8px;display:none">🔄 Carica lista archivi</button>
     <div id="archivio-list" style="max-height:300px;overflow-y:auto"><p style="color:#94A3B8;font-size:12px">Clicca "Carica lista archivi" per vedere gli snapshot</p></div>
     <!-- Notifiche lette -->
-    <div style="margin-top:16px">
-      <div onclick="this.nextElementSibling.style.display=this.nextElementSibling.style.display==='none'?'':'none';mostraNotificheLette()" style="cursor:pointer;display:flex;align-items:center;gap:6px;margin-bottom:8px">
-        <span style="font-size:11px;font-weight:700;color:#9CA3AF;letter-spacing:.05em">🔔 NOTIFICHE LETTE</span>
-        <span style="font-size:11px;color:#9CA3AF">▼</span>
       </div>
-      <div id="notifiche-lette-list" style="display:none;max-height:250px;overflow-y:auto"></div>
-    </div>
-  </div>
 </div>
 <!-- MODALE COMUNICAZIONE OPERATORI -->
 <div id="comm-overlay" style="display:none;position:fixed;inset:0;background:rgba(15,23,42,0.65);z-index:8000;align-items:center;justify-content:center;backdrop-filter:blur(4px)" onclick="e=>e.stopPropagation()">
@@ -2183,11 +2189,20 @@ hanno accettato di usare la promo Mondialone."><div class="pc-val" style="color:
 L'operatore riceverà una notifica all'orario scelto."><div class="pc-val" style="color:#F97316">${rich}</div><div class="pc-lbl">Da richiamare</div></div>
     <div class="prog-card" data-tip="Utenti ancora da contattare oggi.
 ${n-done} rimasti su ${n} totali."><div class="pc-val" style="color:#94A3B8">${n-done}</div><div class="pc-lbl">Rimanenti</div></div>`;
-  // Badge tc-oggi: per operatori mostra le loro chiamate assegnate
-  if(currentUser&&!currentUser.isAdmin&&!currentUser.isSupervisor){
-    const myN=Object.values(callState).filter(st=>st.op===currentUser.name).length;
+  _aggiornaNotifBadge();
+  // Badge tc-oggi: aggiorna per tutti
+  {
     const el=document.getElementById('tc-oggi');
-    if(el)el.textContent=myN;
+    if(el){
+      if(currentUser&&!currentUser.isAdmin&&!currentUser.isSupervisor){
+        // Operatore: conta le sue chiamate assegnate
+        const myN=Object.values(callState).filter(st=>st.op===currentUser.name).length;
+        el.textContent=myN;
+      } else {
+        // Admin/Supervisore: conta rimanenti (da contattare)
+        el.textContent=(n-done)>0?(n-done):n;
+      }
+    }
   }
 }
 function bulkAssign(){const op=document.getElementById('mat-op').value;if(!op){toast('Seleziona operatore');return;}const from=parseInt(document.getElementById('mat-from').value)||1,to=parseInt(document.getElementById('mat-to').value)||20;getUsers().filter(u=>u.r>=from&&u.r<=to).forEach(u=>{if(!callState[u.u])callState[u.u]={};callState[u.u].op=op;if(!callState[u.u].assignedAt)callState[u.u].assignedAt=new Date().toISOString();});saveState();renderTable();updateProg();document.getElementById('mat-status').textContent='✅ Assegnati → '+op;setTimeout(()=>document.getElementById('mat-status').textContent='',3e3);}
@@ -4653,7 +4668,62 @@ function chiudiCommModal(){
       localStorage.setItem('notifiche_lette',JSON.stringify(storico.slice(0,50)));
     }catch(e){}
   }
+  _aggiornaNotifBadge();
   ov.style.display='none';
+}
+
+function toggleNotifPanel(){
+  var p=document.getElementById('notif-panel');
+  if(!p)return;
+  var open=p.style.display!=='none';
+  p.style.display=open?'none':'block';
+  if(!open) _renderNotifPanel();
+  // chiudi cliccando fuori
+  if(!open){
+    setTimeout(function(){
+      document.addEventListener('click',function _cls(e){
+        if(!document.getElementById('notif-panel').contains(e.target)&&e.target.id!=='notif-bell-btn'){
+          document.getElementById('notif-panel').style.display='none';
+          document.removeEventListener('click',_cls);
+        }
+      });
+    },10);
+  }
+}
+function _renderNotifPanel(){
+  var list=document.getElementById('notif-panel-list');
+  if(!list)return;
+  var storico=[];
+  try{storico=JSON.parse(localStorage.getItem('notifiche_lette')||'[]');}catch(e){}
+  if(storico.length===0){
+    list.innerHTML='<div style="padding:20px;text-align:center;color:#64748B;font-size:12px">Nessuna notifica letta</div>';
+    return;
+  }
+  list.innerHTML=storico.map(function(n){
+    return '<div style="padding:10px 16px;border-bottom:1px solid #1E293B">'
+      +'<div style="font-size:12px;font-weight:600;color:#F1F5F9">'+n.titolo+'</div>'
+      +'<div style="font-size:11px;color:#94A3B8;margin-top:2px">'+n.testo+'</div>'
+      +'<div style="font-size:10px;color:#475569;margin-top:4px">'+n.autore+' · '+n.letto+'</div>'
+      +'</div>';
+  }).join('');
+}
+function cancellaNotifiche(){
+  if(!confirm('Cancellare la cronologia notifiche?'))return;
+  localStorage.removeItem('notifiche_lette');
+  _renderNotifPanel();
+  _aggiornaNotifBadge();
+}
+function _aggiornaNotifBadge(){
+  var badge=document.getElementById('notif-badge');
+  if(!badge)return;
+  var storico=[];
+  try{storico=JSON.parse(localStorage.getItem('notifiche_lette')||'[]');}catch(e){}
+  if(storico.length>0){
+    badge.style.display='block';
+    badge.textContent=storico.length>9?'9+':storico.length;
+  } else {
+    badge.style.display='none';
+  }
 }
 
 function mostraNotificheLette(){
