@@ -5064,7 +5064,7 @@ const _TREND_COL = {'IN CRESCITA':'#059669','RIENTRATO':'#7C3AED','STABILE':'#25
 
 function getCallMotivo(u) {
   // Genera motivazione intelligente basata su storico + comportamento recente
-  const trend = (u.t||'').toUpperCase();
+  const trend = normTrend(u.t, u.vt);
   const s90 = u.s90||0;
   const hvol = u.h_vol||0;
   const tgg = u.tgg||0;
@@ -5193,9 +5193,7 @@ function renderListaUsers() {
 
   if (!container) return;
 
-  let rows = '';
-  try {
-  rows = visible.map(function(u,i) {
+  const rows = visible.map(function(u,i) {
     var ul  = u.u.toLowerCase();
     var st  = (callState||{})[ul] || {};
     var esito = st.esito || '';
@@ -5260,10 +5258,6 @@ function renderListaUsers() {
       '<td style="padding:7px 4px;text-align:center" onclick="event.stopPropagation()">'+richBtn+'</td>'+
     '</tr>';
   }).join('');
-  } catch(renderErr) {
-    container.innerHTML = '<div style="color:red;padding:20px;font-size:13px"><b>⚠️ Errore rendering lista:</b><br>' + renderErr.message + '<br><pre>' + (renderErr.stack||'').slice(0,300) + '</pre></div>';
-    return;
-  }
 
   container.innerHTML =
     '<div style="overflow-x:auto">'+
