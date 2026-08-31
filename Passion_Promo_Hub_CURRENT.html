@@ -3440,9 +3440,16 @@ function renderMie(){
 
   const pendingFiltered=alertFilter?alertCalls:pending;
   const editateFiltered=alertFilter?[]:editate;
-  // Ordina pending: IN CALO → SPARITO → RIENTRATO → STABILE → IN CRESCITA → altri
+  // Ordina pending: priorità callState (urgente→alta→media→normale) → alert → trend
   const _MIETP={'IN CALO':0,'SPARITO':1,'RIENTRATO':2,'STABILE':3,'IN CRESCITA':4};
+  const _PRIOP={'urgente':0,'alta':1,'media':2,'normale':3};
   pendingFiltered.sort(function(a,b){
+    const pa=_PRIOP[(callState[a.u]||{}).priority]??3;
+    const pb=_PRIOP[(callState[b.u]||{}).priority]??3;
+    if(pa!==pb)return pa-pb;
+    const aa=(callState[a.u]||{}).assignedAt&&(now-new Date((callState[a.u]||{}).assignedAt).getTime())>ALERT_DAYS*86400000?0:1;
+    const ab=(callState[b.u]||{}).assignedAt&&(now-new Date((callState[b.u]||{}).assignedAt).getTime())>ALERT_DAYS*86400000?0:1;
+    if(aa!==ab)return aa-ab;
     return ((_MIETP[normTrend(a.t,a.vt)]??5)-(_MIETP[normTrend(b.t,b.vt)]??5));
   });
 
@@ -3475,11 +3482,13 @@ function renderMie(){
       const bg=isAlert?'#FEF3C7':u.pr==='🔴 Alta'?'#FFF5F5':u.pr==='🟠 Media'?'#FFFBF0':'#FAFAFA';
       const bd=isAlert?'#FDE68A':u.pr==='🔴 Alta'?'#FECACA':u.pr==='🟠 Media'?'#FDE68A':'#E5E7EB';
       const alertMark=isAlert?'<span data-tip="Assegnata da oltre '+ALERT_DAYS+' giorni senza esito — urgente!" style="color:#D97706;font-size:12px">⚠️</span> ':'';
+      const _csPrio=(callState[u.u]||{}).priority;
+      const csPrioMark=_csPrio==='urgente'?'<span style="background:#FEE2E2;color:#DC2626;font-size:9px;font-weight:800;border-radius:4px;padding:1px 6px">🔴 URGENTE</span>':_csPrio==='alta'?'<span style="background:#FFF7ED;color:#92400E;font-size:9px;font-weight:800;border-radius:4px;padding:1px 6px">🟠 ALTA</span>':'';
       const prioMark=prioColor?'<span data-tip="Priorità di contatto" style="font-size:10px;font-weight:700;padding:1px 5px;background:'+prioColor+'18;color:'+prioColor+';border-radius:4px;margin-left:4px">'+u.pr+'</span>':'';
       const _pRef=st.promoRef;const _pNome=_pRef?((_promoList[_pRef]||{}).nome||_pRef).substring(0,18):null;
       const srcBadge=_pNome?'<span data-tip="Assegnato dalla lista: '+_pNome+'" style="background:#EFF6FF;color:#1D4ED8;font-size:9px;font-weight:700;border-radius:4px;padding:1px 5px;margin-left:2px">📋 '+_pNome+'</span>':'';
       const noteHtml=notePreview?'<div style="color:#94A3B8;font-size:10px;font-style:italic;margin-top:2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">📝 '+notePreview+(fullNote.length>50?'…':'')+'</div>':'';
-      return '<div style="background:'+bg+';border:1px solid '+bd+';border-radius:8px;padding:8px 12px;margin-bottom:5px;cursor:pointer;display:flex;align-items:center;gap:8px;transition:box-shadow .15s" onclick="openScheda(\''+u.u+'\')" onmouseover="this.style.boxShadow=\'0 2px 6px rgba(0,0,0,.08)\'" onmouseout="this.style.boxShadow=\'none\'"><div style="flex:1;min-width:0"><div style="display:flex;align-items:center;flex-wrap:wrap;gap:4px;margin-bottom:2px">'+alertMark+'<span style="font-weight:800;font-size:13px;color:#0F172A">'+u.u+'</span>'+prioMark+srcBadge+'</div><div style="display:flex;gap:10px;font-size:10px;color:#64748B;flex-wrap:wrap"><span data-tip="Partner/agente di riferimento">👤 '+(u.fn||'—')+'</span><span data-tip="Data assegnazione chiamata">📅 '+at+'</span><span data-tip="Volume sport nel periodo promozionale">📊 '+volStr+'</span></div>'+noteHtml+'</div><div style="color:#CBD5E1;font-size:18px;font-weight:300">›</div></div>';
+      return '<div style="background:'+bg+';border:1px solid '+bd+';border-radius:8px;padding:8px 12px;margin-bottom:5px;cursor:pointer;display:flex;align-items:center;gap:8px;transition:box-shadow .15s" onclick="openScheda(\''+u.u+'\')" onmouseover="this.style.boxShadow=\'0 2px 6px rgba(0,0,0,.08)\'" onmouseout="this.style.boxShadow=\'none\'"><div style="flex:1;min-width:0"><div style="display:flex;align-items:center;flex-wrap:wrap;gap:4px;margin-bottom:2px">'+alertMark+'<span style="font-weight:800;font-size:13px;color:#0F172A">'+u.u+'</span>'+prioMark+csPrioMark+srcBadge+'</div><div style="display:flex;gap:10px;font-size:10px;color:#64748B;flex-wrap:wrap"><span data-tip="Partner/agente di riferimento">👤 '+(u.fn||'—')+'</span><span data-tip="Data assegnazione chiamata">📅 '+at+'</span><span data-tip="Volume sport nel periodo promozionale">📊 '+volStr+'</span></div>'+noteHtml+'</div><div style="display:flex;flex-direction:column;gap:3px;flex-shrink:0"><button onclick="event.stopPropagation();setEsito(\''+u.u+'\',\''NON RAGGIUNTO\'');renderMie()" title="📵" style="background:#F1F5F9;border:none;border-radius:5px;padding:4px 8px;font-size:11px;cursor:pointer;color:#64748B">📵</button><button onclick="event.stopPropagation();setEsito(\''+u.u+'\',\''ATTIVATO\'');renderMie()" title="✅" style="background:#D1FAE5;border:none;border-radius:5px;padding:4px 8px;font-size:11px;cursor:pointer;color:#059669">✅</button><button onclick="event.stopPropagation();openScheda(\''+u.u+'\')" title="Scheda completa" style="background:#EFF6FF;border:none;border-radius:5px;padding:4px 10px;font-size:13px;cursor:pointer;color:#2563EB">›</button></div></div>';
     };
     let _html=_pendRecenti.map(_renderRow).join('');
     if(_pendStorico.length){
