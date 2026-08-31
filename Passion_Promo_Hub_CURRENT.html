@@ -479,10 +479,10 @@ th[data-tip],[data-tip]{cursor:help}
       <div id="sb-role-label" style="font-size:9px;color:#475569;margin-top:2px;text-transform:uppercase;letter-spacing:.5px"></div>
     </div>
     <div class="tab active" id="tab-dash" onclick="switchTab('dash')">📊 Dashboard</div>
-    <div class="tab" id="tab-oggi" onclick="switchTab('oggi')">📋 Chiamate <span class="tab-count" id="tc-oggi">...</span></div>
+    <div class="tab" id="tab-oggi" onclick="switchTab('oggi')">📋 Liste Lavoro <span class="tab-count" id="tc-oggi">...</span></div>
     <div class="tab" id="tab-mie" onclick="switchTab('mie')">📞 Le Mie <span class="tab-count" id="tc-mie">0</span></div>
     <div class="tab" id="tab-tutti" onclick="switchTab('tutti')" style="display:none">👥 Tutti gli utenti <span class="tab-count" id="tc-tutti">...</span></div>
-    <div class="tab" id="tab-conv" onclick="switchTab('conv')" style="display:none">🏆 Convertiti <span class="tab-count" id="tc-conv">0</span></div>
+    <div class="tab" id="tab-conv" onclick="switchTab('conv')" style="display:none">✅ Riattivati <span class="tab-count" id="tc-conv">0</span></div>
     <div class="tab" id="tab-qualif" onclick="switchTab('qualif')" style="display:none">🌍 Qualificati <span class="tab-count" id="tc-qualif">...</span></div>
     <div style="height:1px;background:#334155;margin:6px 12px"></div>
     <div class="tab" id="tab-liste" onclick="switchTab('liste')">🎯 Liste</div>
@@ -1058,6 +1058,7 @@ Più è alta, più il giocatore usa combinazioni.">%Multi</th>
     <button class="dash-stab" id="dsub-inattivi" onclick="setDashSub('inattivi')">😴 Da Riattivare <span id="dash-inatt-badge" style="background:#EF4444;color:#fff;border-radius:99px;padding:1px 6px;font-size:10px;font-weight:700;margin-left:4px">0</span></button>
     <button class="dash-stab" id="dsub-father" onclick="setDashSub('father')">🤝 Per Father</button>
     <button class="dash-stab" id="dsub-sport" onclick="setDashSub('sport')">⚽ Top Sport</button>
+    <button class="dash-stab" id="dsub-top" onclick="setDashSub('top')">🏆 Top Giocatori</button>
   </div>
 
   <!-- FILIERA FILTER -->
@@ -3476,6 +3477,8 @@ function renderMie(){
       const isAlert=(st.assignedAt&&(now-new Date(st.assignedAt).getTime())>ALERT_DAYS*86400000);
       const hvol=(STORICO_SPORT&&STORICO_SPORT[u.u.toLowerCase()])||{};
       const volStr=hvol.h_vol>0?'€'+Math.round(hvol.h_vol).toLocaleString('it-IT'):u.vt_d>0?'€'+Math.round(u.vt_d).toLocaleString('it-IT'):'—';
+      const vol7dStr=(hvol.h_7d_stake||0)>0?'🟢 €'+Math.round(hvol.h_7d_stake).toLocaleString('it-IT')+' 7gg':'—';
+      const prefBadge=hvol.h_pref?'<span style="background:#F0FDF4;color:#15803D;font-size:9px;font-weight:700;border-radius:4px;padding:1px 5px;margin-left:4px">⚽ '+hvol.h_pref+'</span>':'';
       const notePreview=(sc2.note||st.note||'').substring(0,50);
       const fullNote=(sc2.note||st.note||'');
       const prioColor={'🔴 Alta':'#DC2626','🟠 Media':'#D97706','🟡 Bassa':'#16A34A'}[u.pr]||'';
@@ -3488,7 +3491,7 @@ function renderMie(){
       const _pRef=st.promoRef;const _pNome=_pRef?((_promoList[_pRef]||{}).nome||_pRef).substring(0,18):null;
       const srcBadge=_pNome?'<span data-tip="Assegnato dalla lista: '+_pNome+'" style="background:#EFF6FF;color:#1D4ED8;font-size:9px;font-weight:700;border-radius:4px;padding:1px 5px;margin-left:2px">📋 '+_pNome+'</span>':'';
       const noteHtml=notePreview?'<div style="color:#94A3B8;font-size:10px;font-style:italic;margin-top:2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">📝 '+notePreview+(fullNote.length>50?'…':'')+'</div>':'';
-      return '<div style="background:'+bg+';border:1px solid '+bd+';border-radius:8px;padding:8px 12px;margin-bottom:5px;cursor:pointer;display:flex;align-items:center;gap:8px;transition:box-shadow .15s" onclick="openScheda(\''+u.u+'\')" onmouseover="this.style.boxShadow=\'0 2px 6px rgba(0,0,0,.08)\'" onmouseout="this.style.boxShadow=\'none\'"><div style="flex:1;min-width:0"><div style="display:flex;align-items:center;flex-wrap:wrap;gap:4px;margin-bottom:2px">'+alertMark+'<span style="font-weight:800;font-size:13px;color:#0F172A">'+u.u+'</span>'+prioMark+csPrioMark+srcBadge+'</div><div style="display:flex;gap:10px;font-size:10px;color:#64748B;flex-wrap:wrap"><span data-tip="Partner/agente di riferimento">👤 '+(u.fn||'—')+'</span><span data-tip="Data assegnazione chiamata">📅 '+at+'</span><span data-tip="Volume sport nel periodo promozionale">📊 '+volStr+'</span></div>'+noteHtml+'</div><div style="display:flex;flex-direction:column;gap:3px;flex-shrink:0"><button onclick="event.stopPropagation();setEsito(\''+u.u+'\',\'NON RAGGIUNTO\');renderMie()" title="📵" style="background:#F1F5F9;border:none;border-radius:5px;padding:4px 8px;font-size:11px;cursor:pointer;color:#64748B">📵</button><button onclick="event.stopPropagation();setEsito(\''+u.u+'\',\'ATTIVATO\');renderMie()" title="✅" style="background:#D1FAE5;border:none;border-radius:5px;padding:4px 8px;font-size:11px;cursor:pointer;color:#059669">✅</button><button onclick="event.stopPropagation();openScheda(\''+u.u+'\')" title="Scheda completa" style="background:#EFF6FF;border:none;border-radius:5px;padding:4px 10px;font-size:13px;cursor:pointer;color:#2563EB">›</button></div></div>';
+      return '<div style="background:'+bg+';border:1px solid '+bd+';border-radius:8px;padding:8px 12px;margin-bottom:5px;cursor:pointer;display:flex;align-items:center;gap:8px;transition:box-shadow .15s" onclick="openScheda(\''+u.u+'\')" onmouseover="this.style.boxShadow=\'0 2px 6px rgba(0,0,0,.08)\'" onmouseout="this.style.boxShadow=\'none\'"><div style="flex:1;min-width:0"><div style="display:flex;align-items:center;flex-wrap:wrap;gap:4px;margin-bottom:2px">'+alertMark+'<span style="font-weight:800;font-size:13px;color:#0F172A">'+u.u+'</span>'+prioMark+csPrioMark+srcBadge+'</div><div style="display:flex;gap:10px;font-size:10px;color:#64748B;flex-wrap:wrap"><span data-tip="Partner/agente di riferimento">👤 '+(u.fn||'—')+'</span><span data-tip="Data assegnazione chiamata">📅 '+at+'</span><span data-tip="Volume sport nel periodo promozionale">📊 '+volStr+'</span><span data-tip="Volume ultimi 7 giorni">📈 '+vol7dStr+'</span>'+prefBadge+'</div>'+noteHtml+'</div><div style="display:flex;flex-direction:column;gap:3px;flex-shrink:0"><button onclick="event.stopPropagation();setEsito(\''+u.u+'\',\'NON RAGGIUNTO\');renderMie()" title="📵" style="background:#F1F5F9;border:none;border-radius:5px;padding:4px 8px;font-size:11px;cursor:pointer;color:#64748B">📵</button><button onclick="event.stopPropagation();setEsito(\''+u.u+'\',\'ATTIVATO\');renderMie()" title="✅" style="background:#D1FAE5;border:none;border-radius:5px;padding:4px 8px;font-size:11px;cursor:pointer;color:#059669">✅</button><button onclick="event.stopPropagation();openScheda(\''+u.u+'\')" title="Scheda completa" style="background:#EFF6FF;border:none;border-radius:5px;padding:4px 10px;font-size:13px;cursor:pointer;color:#2563EB">›</button></div></div>';
     };
     let _html=_pendRecenti.map(_renderRow).join('');
     if(_pendStorico.length){
@@ -4403,6 +4406,67 @@ function _renderDashContent(list, inPromo, attivi, inatt) {
   else if(dashSubTab==='father')   _dashFather(list);
   else if(dashSubTab==='sport')    _dashSport();
   else if(dashSubTab==='stats')   _dashStats();
+  else if(dashSubTab==='top')     _dashTop();
+}
+
+function _dashTop(){
+  var el=document.getElementById('dash-content');if(!el)return;
+  var keys=[];
+  if(!currentUser)return;
+  if(currentUser.isAdmin||currentUser.isSuperAdmin){
+    keys=STORICO_SPORT?Object.keys(STORICO_SPORT):[];
+  } else if(currentUser.isSupervisor||currentUser.isTeamLeader){
+    var svOps=(cfg&&cfg.operators||[]).filter(function(o){return(o.filiere||[]).some(function(f){return(currentUser.filiere||[]).includes(f);});}).map(function(o){return o.name;});
+    Object.keys(callState).forEach(function(u){if(svOps.indexOf((callState[u]||{}).op)>=0)keys.push(u.toLowerCase());});
+  } else {
+    var opN=currentUser.name;
+    Object.keys(callState).forEach(function(u){if(((callState[u]||{}).op||'')==opN)keys.push(u.toLowerCase());});
+  }
+  var sto=STORICO_SPORT||{};
+  var users=keys.filter(function(k){return !!sto[k];}).map(function(k){
+    var s=sto[k];return{u:k,ggr:s.h_ggr||0,vol:s.h_vol||0,vol7d:s.h_7d_stake||0,pref:s.h_pref||'—'};
+  });
+  function _eur(n){return '€'+Math.round(n).toLocaleString('it-IT');}
+  function _topTable(title,icon,sorted,valFn,valLabel,colorFn){
+    if(!sorted.length)return '<div style="background:#fff;border:1px solid #E5E7EB;border-radius:10px;padding:14px;margin-bottom:14px"><div style="font-size:13px;font-weight:800;color:#374151">'+icon+' '+title+'</div><div style="text-align:center;color:#9CA3AF;padding:16px;font-size:12px">Nessun dato disponibile</div></div>';
+    var h='<div style="background:#fff;border:1px solid #E5E7EB;border-radius:10px;padding:14px;margin-bottom:14px">';
+    h+='<div style="font-size:13px;font-weight:800;color:#374151;margin-bottom:10px">'+icon+' '+title+'</div>';
+    h+='<table style="width:100%;border-collapse:collapse;font-size:12px">';
+    h+='<thead><tr style="background:#F8FAFC"><th style="padding:5px 8px;text-align:left;color:#64748B;font-weight:700">#</th><th style="padding:5px 8px;text-align:left;color:#64748B;font-weight:700">Username</th><th style="padding:5px 8px;text-align:left;color:#64748B;font-weight:700">Sport</th><th style="padding:5px 8px;text-align:right;color:#64748B;font-weight:700">'+valLabel+'</th></tr></thead><tbody>';
+    sorted.slice(0,10).forEach(function(u,i){
+      var val=valFn(u),color=colorFn?colorFn(u):'#374151';
+      h+='<tr data-u="'+u.u+'" style="border-top:1px solid #F1F5F9;cursor:pointer">';
+      h+='<td style="padding:6px 8px;color:#9CA3AF;font-weight:700">'+(i+1)+'</td>';
+      h+='<td style="padding:6px 8px;font-weight:700;color:#0F172A">'+u.u+'</td>';
+      h+='<td style="padding:6px 8px;color:#64748B;font-size:11px">'+u.pref+'</td>';
+      h+='<td style="padding:6px 8px;text-align:right;font-weight:700;color:'+color+'">'+val+'</td></tr>';
+    });
+    h+='</tbody></table>';
+    h+='<div style="font-size:10px;color:#CBD5E1;margin-top:6px;text-align:right">'+Math.min(sorted.length,10)+' di '+sorted.length+' utenti</div>';
+    h+='</div>';
+    return h;
+  }
+  var byGgrPos=users.filter(function(u){return u.ggr>0;}).sort(function(a,b){return b.ggr-a.ggr;});
+  var byGgrNeg=users.filter(function(u){return u.ggr<0;}).sort(function(a,b){return a.ggr-b.ggr;});
+  var byVol=users.filter(function(u){return u.vol>0;}).sort(function(a,b){return b.vol-a.vol;});
+  var byVol7d=users.filter(function(u){return u.vol7d>0;}).sort(function(a,b){return b.vol7d-a.vol7d;});
+  var lbl=(currentUser.isAdmin||currentUser.isSuperAdmin)?'Tutti (storico)':(currentUser.isSupervisor||currentUser.isTeamLeader)?'Filiera':'I tuoi utenti';
+  var h='<div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:8px;margin-bottom:16px">';
+  h+='<div style="font-size:16px;font-weight:800;color:#1E293B">🏆 Top Giocatori</div>';
+  h+='<div style="font-size:11px;color:#94A3B8;background:#F8FAFC;border:1px solid #E5E7EB;border-radius:6px;padding:4px 10px">'+lbl+' ('+users.length+')</div></div>';
+  h+='<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(340px,1fr));gap:14px">';
+  h+=_topTable('GGR Positivo — Migliori per l\'azienda','💚',byGgrPos,function(u){return _eur(u.ggr);},'GGR',function(){return'#15803D';});
+  h+=_topTable('GGR Negativo — Utenti che vincono (rischio)','🔴',byGgrNeg,function(u){return _eur(u.ggr);},'GGR',function(){return'#DC2626';});
+  h+=_topTable('Volume Totale — Più attivi in assoluto','📊',byVol,function(u){return _eur(u.vol);},'Volume',function(){return'#374151';});
+  h+=_topTable('Volume 7gg — Rientrati questa settimana','📈',byVol7d,function(u){return _eur(u.vol7d);},'Vol 7gg',function(){return'#2563EB';});
+  h+='</div>';
+  el.innerHTML=h;
+  // Attacca click handler via JS (evita escaping onclick inline)
+  el.querySelectorAll('tr[data-u]').forEach(function(row){
+    row.addEventListener('click',function(){openScheda(this.getAttribute('data-u'));});
+    row.addEventListener('mouseover',function(){this.style.background='#F8FAFC';});
+    row.addEventListener('mouseout',function(){this.style.background='';});
+  });
 }
 
 function _dashRiepilogo(list,inPromo,attivi,inatt) {
