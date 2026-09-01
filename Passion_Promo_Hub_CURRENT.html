@@ -1052,12 +1052,9 @@ Più è alta, più il giocatore usa combinazioni.">%Multi</th>
 
   <!-- SUB-TAB NAVIGATION -->
   <div class="dash-stab-nav">
-    <button class="dash-stab active" id="dsub-stats" onclick="setDashSub('stats')">📊 Statistiche</button>
-    <button class="dash-stab" id="dsub-riepilogo" onclick="setDashSub('riepilogo')">📈 Riepilogo</button>
-    <button class="dash-stab" id="dsub-qualif" onclick="setDashSub('qualif')">👤 Qualificati</button>
+    <button class="dash-stab active" id="dsub-stats" onclick="setDashSub('stats')">📊 Operatività</button>
+    <button class="dash-stab" id="dsub-fin" onclick="setDashSub('fin')">💰 Finanziario</button>
     <button class="dash-stab" id="dsub-inattivi" onclick="setDashSub('inattivi')">😴 Da Riattivare <span id="dash-inatt-badge" style="background:#EF4444;color:#fff;border-radius:99px;padding:1px 6px;font-size:10px;font-weight:700;margin-left:4px">0</span></button>
-    <button class="dash-stab" id="dsub-father" onclick="setDashSub('father')">🤝 Per Father</button>
-    <button class="dash-stab" id="dsub-sport" onclick="setDashSub('sport')">⚽ Top Sport</button>
     <button class="dash-stab" id="dsub-top" onclick="setDashSub('top')">🏆 Top Giocatori</button>
   </div>
 
@@ -4400,13 +4397,10 @@ function _renderDashContent(list, inPromo, attivi, inatt) {
     inatt=l.filter(q=>(q.vt||0)===0&&(q.vq||0)===0);
     list=l;
   }
-  if(dashSubTab==='riepilogo') _dashRiepilogo(list,inPromo,attivi,inatt);
-  else if(dashSubTab==='qualif')   _dashQualif(list);
-  else if(dashSubTab==='inattivi') _dashInattivi(inatt);
-  else if(dashSubTab==='father')   _dashFather(list);
-  else if(dashSubTab==='sport')    _dashSport();
-  else if(dashSubTab==='stats')   _dashStats();
-  else if(dashSubTab==='top')     _dashTop();
+  if(dashSubTab==='stats')         _dashStats();
+  else if(dashSubTab==='fin')      _dashFinanziario();
+  else if(dashSubTab==='inattivi') _dashInattivi();
+  else if(dashSubTab==='top')      _dashTop();
 }
 
 function _dashTop(){
@@ -4467,6 +4461,64 @@ function _dashTop(){
     row.addEventListener('mouseover',function(){this.style.background='#F8FAFC';});
     row.addEventListener('mouseout',function(){this.style.background='';});
   });
+}
+
+function _dashFinanziario(){
+  var el=document.getElementById('dash-content');if(!el)return;
+  var sto=STORICO_SPORT||{};
+  var all=Object.keys(sto).filter(function(k){return sto[k].crm_data!==undefined;}).map(function(k){return Object.assign({_u:k},sto[k]);});
+  if(!all.length){
+    el.innerHTML='<div style="text-align:center;padding:40px;color:#9CA3AF;font-size:13px">Nessun dato CRM.<br>Esegui enrich_storico.py con il file CRM più recente.</div>';
+    return;
+  }
+  var dataDate=all[0].crm_data||'—';
+  var totG30=all.reduce(function(s,u){return s+(u.crm_g30||0);},0);
+  var totGgr30=all.reduce(function(s,u){return s+(u.crm_ggr30||0);},0);
+  var totCasino=all.reduce(function(s,u){return s+(u.crm_casino_vol||0);},0);
+  var nSp=all.filter(function(u){return u.crm_tipo==='SPORT';}).length;
+  var nCa=all.filter(function(u){return u.crm_tipo==='CASINO';}).length;
+  var nMi=all.filter(function(u){return u.crm_tipo==='MISTO';}).length;
+  var byPos=all.filter(function(u){return (u.crm_ggr30||0)>0;}).sort(function(a,b){return b.crm_ggr30-a.crm_ggr30;}).slice(0,10);
+  var byNeg=all.filter(function(u){return (u.crm_ggr30||0)<0;}).sort(function(a,b){return a.crm_ggr30-b.crm_ggr30;}).slice(0,10);
+  function eur(n){return '€'+Math.round(Math.abs(n)).toLocaleString('it-IT');}
+  var kpis=[
+    {l:'Utenti CRM',v:all.length.toLocaleString('it-IT'),s:'data: '+dataDate,c:'#2563EB',bg:'#EFF6FF'},
+    {l:'Vol. 30gg totale',v:eur(totG30),s:'sport+casino',c:'#7C3AED',bg:'#F5F3FF'},
+    {l:'GGR 30gg',v:(totGgr30>=0?'+':'-')+eur(totGgr30),s:'agosto 2026',c:totGgr30>=0?'#15803D':'#DC2626',bg:totGgr30>=0?'#F0FDF4':'#FEF2F2'},
+    {l:'Vol. Casino storico',v:eur(totCasino),s:'lifetime',c:'#D97706',bg:'#FFFBEB'},
+  ];
+  var kHtml=kpis.map(function(k){
+    return '<div style="background:'+k.bg+';border-radius:12px;padding:14px 16px;border:1px solid '+k.c+'22">'
+      +'<div style="font-size:10px;font-weight:700;color:'+k.c+';text-transform:uppercase;letter-spacing:.5px;margin-bottom:6px">'+k.l+'</div>'
+      +'<div style="font-size:24px;font-weight:800;color:'+k.c+';line-height:1">'+k.v+'</div>'
+      +'<div style="font-size:11px;color:#64748B;margin-top:4px">'+k.s+'</div></div>';
+  }).join('');
+  function tbl(title,rows,valFn,vc){
+    if(!rows.length)return '';
+    return '<div style="background:#fff;border:1px solid #E5E7EB;border-radius:10px;padding:14px;flex:1;min-width:280px">'
+      +'<div style="font-size:13px;font-weight:800;color:#374151;margin-bottom:10px">'+title+'</div>'
+      +'<table style="width:100%;border-collapse:collapse;font-size:12px"><tbody>'
+      +rows.map(function(u,i){
+        return '<tr style="border-top:1px solid #F1F5F9">'
+          +'<td style="padding:5px 8px;color:#9CA3AF">'+(i+1)+'</td>'
+          +'<td style="padding:5px 8px;font-weight:700">'+u._u+'</td>'
+          +'<td style="padding:5px 8px;text-align:right;font-weight:700;color:'+vc+'">'+valFn(u)+'</td></tr>';
+      }).join('')
+      +'</tbody></table></div>';
+  }
+  el.innerHTML='<div style="margin-bottom:12px"><span style="font-size:11px;color:#94A3B8">Dati CRM Betpassion — aggiornati al <strong>'+dataDate+'</strong> ('+all.length.toLocaleString('it-IT')+' utenti)</span></div>'
+    +'<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:12px;margin-bottom:16px">'+kHtml+'</div>'
+    +'<div style="background:#fff;border:1px solid #E5E7EB;border-radius:10px;padding:14px;margin-bottom:16px">'
+      +'<div style="font-size:13px;font-weight:800;color:#374151;margin-bottom:10px">Mix tipologia utenti</div>'
+      +'<div style="display:flex;gap:12px;flex-wrap:wrap">'
+        +'<div style="text-align:center;background:#EFF6FF;border-radius:8px;padding:10px 18px"><div style="font-size:22px;font-weight:800;color:#2563EB">'+nSp+'</div><div style="font-size:10px;color:#64748B;margin-top:2px">⚽ SPORT</div></div>'
+        +'<div style="text-align:center;background:#FFF7ED;border-radius:8px;padding:10px 18px"><div style="font-size:22px;font-weight:800;color:#D97706">'+nCa+'</div><div style="font-size:10px;color:#64748B;margin-top:2px">🎰 CASINO</div></div>'
+        +'<div style="text-align:center;background:#F5F3FF;border-radius:8px;padding:10px 18px"><div style="font-size:22px;font-weight:800;color:#7C3AED">'+nMi+'</div><div style="font-size:10px;color:#64748B;margin-top:2px">🎯 MISTO</div></div>'
+      +'</div></div>'
+    +'<div style="display:flex;gap:14px;flex-wrap:wrap">'
+    +tbl('💚 GGR 30gg positivo — migliori per azienda',byPos,function(u){return '+'+eur(u.crm_ggr30);},'#15803D')
+    +tbl('🔴 GGR 30gg negativo — utenti che vincono',byNeg,function(u){return '-'+eur(u.crm_ggr30);},'#DC2626')
+    +'</div>';
 }
 
 function _dashRiepilogo(list,inPromo,attivi,inatt) {
@@ -4635,11 +4687,27 @@ function _dashQualifRows(list,max) {
   }).join('');
 }
 
-function _dashInattivi(inatt) {
-  var sorted=inatt.map(function(q){
-    var st=(STORICO_SPORT&&STORICO_SPORT[q.u.toLowerCase()])||{};
-    return Object.assign({},q,{_hv:st.h_vol||0,_hg:st.h_giorni||0,_hp:st.h_pref||'',_sc:(st.h_vol||0)*0.6+(st.h_giorni||0)*10+(st.h_pref?50:0)});
-  }).sort(function(a,b){return b._sc-a._sc;});
+function _dashInattivi() {
+  var el=document.getElementById('dash-content');if(!el)return;
+  var cs=callState||{};
+  var qs=new Set(Object.keys(cs).map(function(k){return k.toLowerCase();}));
+  if(currentUser&&!currentUser.isAdmin&&!currentUser.isSuperAdmin){
+    if(currentUser.isSupervisor||currentUser.isTeamLeader){
+      var svOps=(cfg&&cfg.operators||[]).filter(function(o){return(o.filiere||[]).some(function(f){return(currentUser.filiere||[]).indexOf(f)>=0;});}).map(function(o){return o.name;});
+      qs=new Set(Object.keys(cs).filter(function(k){return svOps.indexOf((cs[k]||{}).op)>=0;}).map(function(k){return k.toLowerCase();}));
+    } else {
+      var opN=currentUser.name;
+      qs=new Set(Object.keys(cs).filter(function(k){return((cs[k]||{}).op||'')==opN;}).map(function(k){return k.toLowerCase();}));
+    }
+  }
+  var sto=STORICO_SPORT||{};
+  var sorted=Object.keys(sto).filter(function(k){
+    if(!qs.has(k))return false;
+    var s=sto[k];return (s.h_vol||0)>0&&(s.h_7d_tk||0)===0;
+  }).map(function(k){
+    var s=sto[k];
+    return {u:k,hv:s.h_vol||0,hg:s.h_giorni||0,hp:s.h_pref||'—',g30:s.crm_g30||0,lv:s.crm_lv||'—',tp:s.crm_tipo||''};
+  }).sort(function(a,b){return b.hv-a.hv;});
   var rows=sorted.slice(0,150).map(function(u,i){
     var cc=u._sc>500?'#EF4444':u._sc>200?'#F59E0B':'#3B82F6';
     return '<tr><td style="color:#9CA3AF">'+(i+1)+'</td><td><strong style="color:#DC2626">'+u.u+'</strong></td><td style="color:#6B7280">'+(u.p||'—')+'</td><td style="text-align:right;color:#F59E0B">'+(u._hv>0?'€'+Math.round(u._hv).toLocaleString('it-IT'):'—')+'</td><td style="text-align:right">'+(u._hg>0?Math.round(u._hg)+' gg':'—')+'</td><td>'+(u._hp||'—')+'</td><td><span class="dash-badge" style="background:'+cc+'22;color:'+cc+'">'+Math.round(u._sc)+'</span></td></tr>';
