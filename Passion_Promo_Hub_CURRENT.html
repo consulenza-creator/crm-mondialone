@@ -662,9 +662,9 @@ L'operatore riceve una notifica all'orario scelto.">📞</th>
       </div>
       <div class="table-wrap" style="max-height:calc(100vh - 220px)">
         <table><thead><tr>
-          <th>Username</th><th>Partner</th><th>Filiera</th><th>Categoria</th>
+          <th>Username</th><th>Filiera</th>
           <th>Stato</th><th style="text-align:center">Inattivo</th><th style="text-align:right">Vol 30gg</th>
-          <th>Sport</th><th>Restrizioni</th><th>Operatore</th>
+          <th>Sport Pref.</th><th>Restrizioni</th><th>Operatore</th>
         </tr></thead><tbody id="tutti-tbody"></tbody></table>
         <div class="pagination" id="tutti-pag"></div>
       </div>
@@ -3330,19 +3330,46 @@ function giorniInattivo(hist){
   if(days<=30)return days+'gg';
   return'<span style="color:#DC2626;font-weight:700">'+days+'gg</span>';
 }
+function renderOpCell(uname){
+  var cs=(window.callState&&window.callState[uname.toLowerCase()])||{};
+  var op=cs.op||'';
+  return '<span style="cursor:pointer;color:'+(op?'#374151':'#9CA3AF')+';font-size:11px;text-decoration:underline dotted" onclick="assignOpFromTutti(event,\''+uname+'\')">'+( op||'Assegna')+'</span>';
+}
+function assignOpFromTutti(ev,uname){
+  ev.stopPropagation();
+  var td=ev.target.closest('td');if(!td)return;
+  var ops=(cfg&&cfg.operators)||[];
+  var cur=((window.callState&&window.callState[uname.toLowerCase()])||{}).op||'';
+  var sel=document.createElement('select');
+  sel.style.cssText='font-size:11px;border:1px solid #D1D5DB;border-radius:5px;padding:2px 4px;outline:none;max-width:130px';
+  sel.innerHTML='<option value="">— Nessuno —</option>'+ops.map(function(o){return '<option value="'+o.name+'"'+(o.name===cur?' selected':'')+'>'+o.name+'</option>';}).join('');
+  td.innerHTML='';td.appendChild(sel);sel.focus();
+  sel.onchange=function(){
+    var newOp=sel.value;
+    var key=uname.toLowerCase();
+    if(!window.callState)window.callState={};
+    if(!window.callState[key])window.callState[key]={};
+    window.callState[key].op=newOp;
+    if(typeof saveState==='function')saveState();
+    td.innerHTML=renderOpCell(uname);
+    if(typeof renderTuttiPage==='function'){tuttiPage=0;renderTuttiPage();}
+  };
+  sel.onblur=function(){td.innerHTML=renderOpCell(uname);};
+}
 function renderTuttiPage(){
   const start=tuttiPage*TUTTI_PAGE_SIZE,end=Math.min(start+TUTTI_PAGE_SIZE,tuttiFilt.length);
   document.getElementById('tutti-tbody').innerHTML=tuttiFilt.slice(start,end).map(u=>`<tr style="cursor:pointer" onclick="openScheda('${u.u}')">
-    <td style="font-weight:700;font-size:12px">${u.u}</td>
-    <td style="font-size:11px;color:#6B7280">${u.fn||'—'}</td>
+    <td>
+      <div style="font-weight:700;font-size:12px">${u.u}</div>
+      <div style="font-size:10px;color:#9CA3AF">${u.fn||''}</div>
+    </td>
     <td><span class="fil-badge">${u.f}</span></td>
-    <td><span class="cat-badge ${CAT_CSS[normCat(u.c)]||''}">${normCat(u.c)}</span></td>
-    <td>${(()=>{const _h=STORICO_SPORT&&STORICO_SPORT[u.u.toLowerCase()];const s=computeStatoLifecycle(_h);return '<span style="background:'+s.bg+';color:'+s.color+';font-size:10px;font-weight:700;border-radius:4px;padding:2px 6px">'+s.label+'</span>';})()}</td>
+    <td>${(()=>{const _h=STORICO_SPORT&&STORICO_SPORT[u.u.toLowerCase()];const s=computeStatoLifecycle(_h);return '<span style="background:'+s.bg+';color:'+s.color+';font-size:10px;font-weight:700;border-radius:4px;padding:2px 7px">'+s.label+'</span>';})()}</td>
     <td style="font-size:11px;color:#64748B;text-align:center">${(()=>{const _h=STORICO_SPORT&&STORICO_SPORT[u.u.toLowerCase()];return giorniInattivo(_h);})()}</td>
-    <td style="font-size:11px;text-align:right">${(()=>{const _h=STORICO_SPORT&&STORICO_SPORT[u.u.toLowerCase()];return(_h&&(_h.crm_g30||0)>0)?'€'+Math.round(_h.crm_g30).toLocaleString('it-IT'):'—';})()}</td>
-    <td>${renderSportCell(u.u)}</td>
-    <td style="font-size:10px">${(()=>{const cs=(window.callState&&window.callState[u.u.toLowerCase()])||{};const r=[];if(cs.no_bonus)r.push('<span style="background:#FEE2E2;color:#DC2626;border-radius:3px;padding:1px 5px;font-size:9px">🚫Bonus</span>');if(cs.no_call)r.push('<span style="background:#FEF3C7;color:#92400E;border-radius:3px;padding:1px 5px;font-size:9px">🔇Chiam.</span>');return r.join(' ')||'—';})()}</td>
-    <td style="font-size:11px;color:#374151">${(()=>{const cs=(window.callState&&window.callState[u.u.toLowerCase()])||{};return cs.op||'<span style="color:#CBD5E1">—</span>';})()}</td>
+    <td style="font-size:11px;text-align:right">${(()=>{const _h=STORICO_SPORT&&STORICO_SPORT[u.u.toLowerCase()];const v=_h&&(_h.crm_g30||0);return v>0?'€'+Math.round(v).toLocaleString('it-IT'):'—';})()}</td>
+    <td style="font-size:11px">${(()=>{const _h=STORICO_SPORT&&STORICO_SPORT[u.u.toLowerCase()];if(!_h)return'—';const pref=_h.h_pref||'—';const s7=_h.h_7d_stake||0;return pref+(s7>0?'<div style="font-size:9px;color:#6B7280">'+(s7>=1000?'€'+(s7/1000).toFixed(1)+'k':'€'+Math.round(s7))+'</div>':'');})()}</td>
+    <td style="font-size:10px">${(()=>{const cs=(window.callState&&window.callState[u.u.toLowerCase()])||{};const r=[];if(cs.no_bonus)r.push('<span style="background:#FEE2E2;color:#DC2626;border-radius:3px;padding:1px 5px;font-size:9px">🚫Bonus</span>');if(cs.no_call)r.push('<span style="background:#FEF3C7;color:#92400E;border-radius:3px;padding:1px 5px;font-size:9px">🔇Chiam.</span>');return r.join(' ')||'<span style="color:#6EE7B7;font-size:10px">✓</span>';})()}</td>
+    <td onclick="event.stopPropagation()" style="font-size:11px">${renderOpCell(u.u)}</td>
   </tr>`).join('');
   const pages=Math.ceil(tuttiFilt.length/TUTTI_PAGE_SIZE);
   if(pages<=1){document.getElementById('tutti-pag').innerHTML='';return;}
